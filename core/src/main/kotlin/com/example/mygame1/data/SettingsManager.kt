@@ -1,0 +1,22 @@
+package com.example.mygame1.data
+
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Preferences
+
+object SettingsManager {
+    private val prefs: Preferences = Gdx.app.getPreferences("MyGameSettings")
+
+    var highScore: Int
+        get() = prefs.getInteger("highScore", 0)
+        set(value) {
+            prefs.putInteger("highScore", value)
+            prefs.flush()
+        }
+    var musicEnabled: Boolean
+        get() = prefs.getBoolean("musicEnabled", true)
+        set(value) {
+            prefs.putBoolean("musicEnabled", value)
+            prefs.flush()
+        }
+}
+

@@ -1,0 +1,283 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.11.2" orientation="orthogonal" renderorder="right-down" width="16" height="16" tilewidth="60" tileheight="60" infinite="0" nextlayerid="15" nextobjectid="91">
+ <tileset firstgid="1" source="sampleSheet.tsx"/>
+ <layer id="1" name="Ground" width="16" height="16">
+  <data encoding="csv">
+8,8,8,8,8,8,8,8,8,8,8,8,8,8,3221225488,8,
+8,8,8,8,2,1610612752,1610612752,1610612752,1610612752,1610612752,1610612752,2684354576,2684354576,2684354576,3221225474,8,
+8,8,8,8,3221225488,8,8,8,8,8,8,8,8,8,99,8,
+8,8,8,8,3221225488,15,15,15,15,15,8,8,8,8,8,8,
+8,8,8,8,3221225488,15,15,15,71,15,8,8,8,8,89,99,
+8,8,8,8,3221225488,15,15,57,15,15,8,8,8,8,8,8,
+8,8,8,8,3221225488,15,15,15,15,15,8,8,8,8,8,8,
+1610612752,1610612752,1610612752,1610612752,3221225474,15,15,15,15,15,8,8,8,8,8,8,
+8,8,8,8,8,8,8,15,8,8,8,8,8,8,8,8,
+8,8,15,15,15,15,15,15,15,8,8,89,8,8,8,8,
+8,8,15,15,15,15,15,2684354631,15,8,15,15,15,15,15,8,
+8,8,15,15,15,3221225543,15,15,15,15,15,43,15,43,15,8,
+99,8,15,15,15,15,15,15,15,8,15,15,71,15,15,8,
+8,8,8,8,8,8,8,8,8,8,15,43,15,43,15,8,
+8,8,8,99,8,8,8,8,8,8,15,15,15,15,15,8,
+8,8,8,8,8,8,8,99,8,8,8,8,8,89,8,8
+</data>
+ </layer>
+ <layer id="4" name="Object (offset)" width="16" height="16" offsetx="0" offsety="-30">
+  <data encoding="csv">
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,55,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,3221225500,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,28,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <layer id="2" name="Object" width="16" height="16">
+  <data encoding="csv">
+0,0,0,110,0,0,96,0,0,0,0,0,0,0,0,0,
+0,0,82,0,0,0,0,0,0,0,0,0,110,0,0,0,
+0,0,0,0,0,0,0,0,110,96,0,0,0,0,0,0,
+0,110,0,2684354656,0,10,11,46,11,2684354570,0,51,2684354625,2684354625,2684354625,2684354625,
+0,0,0,110,0,1610612747,42,0,0,2684354571,0,65,0,0,0,0,
+3221225568,0,0,0,0,1610612782,0,0,0,2684354571,0,65,0,0,110,0,
+0,0,0,0,0,1610612747,0,0,0,2684354571,0,65,0,110,0,0,
+0,110,0,0,0,1610612746,3221225483,3221225512,3221225483,3221225482,0,65,0,0,0,0,
+0,0,0,0,0,0,2684354571,0,1610612747,0,0,1610612787,2684354625,2684354653,2684354653,2684354625,
+1610612832,0,10,11,74,11,11,0,2684354570,0,0,0,0,0,0,0,
+0,0,1610612747,41,0,0,0,0,2684354571,3221225482,11,11,11,11,2684354584,0,
+0,0,1610612747,0,0,0,3221225542,0,0,1610612748,0,14,0,0,2684354571,0,
+0,0,1610612746,3221225483,3221225483,3221225483,3221225483,3221225483,3221225482,2684354570,0,0,0,2684354628,2684354571,0,
+0,0,0,0,0,0,0,0,0,2684354571,0,2684354658,0,0,2684354571,0,
+0,110,0,0,0,0,0,0,3221225568,2684354571,3221225483,3221225483,3221225483,3221225483,3221225496,0,
+0,0,0,0,0,0,110,0,0,0,0,0,0,0,0,0
+</data>
+ </layer>
+ <objectgroup id="14" name="Object Layer 1">
+  <object id="34" x="421.979" y="174.907">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -119.867,3.66938 -101.52,22.0163 -2.44626,23.2394"/>
+  </object>
+  <object id="38" x="319.236" y="295.997">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -18.3469,0 -18.3469,-117.42 3.66938,-117.42"/>
+  </object>
+  <object id="39" x="481.913" y="176.13">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -1.22313,20.7932 118.643,20.7932 118.643,1.22313"/>
+  </object>
+  <object id="40" x="599.333" y="478.243">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 1.22313,-300.89 -18.3469,-299.666 -17.1238,0"/>
+  </object>
+  <object id="41" x="472.128" y="479.466">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 127.205,-1.22313 128.428,-20.7932 1.22313,-20.7932"/>
+  </object>
+  <object id="42" x="299.666" y="357.153">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 1.22313,119.867 22.0163,119.867 22.0163,2.44626"/>
+  </object>
+  <object id="43" x="298.443" y="458.673">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 130.875,-1.22313 132.098,19.5701 0,19.5701"/>
+  </object>
+  <object id="44" x="421.979" y="418.31">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 0,58.7102 8.5619,58.7102 11.0082,0"/>
+  </object>
+  <object id="45" x="122.313" y="777.91">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -1.22313,-22.0163 419.533,-18.3469 419.533,0"/>
+  </object>
+  <object id="46" x="119.867" y="538.176">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 0,239.733 19.5701,239.733 20.7932,1.22313"/>
+  </object>
+  <object id="47" x="253.188" y="538.176">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -130.875,0 -132.098,19.5701 -2.44626,20.7932"/>
+  </object>
+  <object id="50" x="419.533" y="558.97">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 1.22313,-100.297 -17.1238,-99.0734 -17.1238,-1.22313"/>
+  </object>
+  <object id="51" x="292.328" y="539.4">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 125.982,-1.22313 125.982,17.1238 0,18.3469"/>
+  </object>
+  <object id="52" x="483.136" y="555.3">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 56.2639,1.22313 58.7102,-17.1238 -1.22313,-17.1238"/>
+  </object>
+  <object id="53" x="481.913" y="461.119">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -1.22313,94.1809 19.5701,95.404 19.5701,-1.22313"/>
+  </object>
+  <object id="54" x="522.276" y="536.953" width="18.3469" height="119.867">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="55" x="518.606" y="637.25" width="83.1727" height="22.0163">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="56" x="582.209" y="599.333" width="17.1238" height="59.9333">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="57" x="582.209" y="596.887" width="264.196" height="19.5701">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="58" x="883.099" y="650.704" width="17.1238" height="194.477">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="66" x="836.62" y="595.663">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 23.2394,2.44626 40.3632,8.5619 53.8176,19.5701 59.9333,33.0245 63.6027,48.9251 63.6027,61.1564 45.2557,62.3795 44.0326,50.1483 39.1401,39.1401 31.8013,29.3551 19.5701,24.4626 1.22313,20.7932"/>
+  </object>
+  <object id="67" x="521.053" y="717.976" width="20.7932" height="59.9333">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="68" x="519.83" y="716.753" width="80.7265" height="20.7932">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="69" x="582.209" y="717.976" width="19.5701" height="177.354">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="70" x="580.986" y="876.983" width="269.088" height="19.5701">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="71" x="900.222" y="846.405">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <polygon points="0,0 -3.66938,19.5701 -11.0082,31.8013 -20.7932,41.5864 -37.917,48.9251 -59.9333,50.1483 -59.9333,31.8013 -42.8095,28.1319 -34.2476,24.4626 -25.6857,17.1238 -19.5701,7.33877 -17.1238,-8.5619 -1.22313,-11.0082"/>
+  </object>
+  <object id="73" x="785.248" y="490.474" width="51.3714" height="33.0245">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="74" x="846.405" y="490.474" width="50.1483" height="33.0245">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+  </object>
+  <object id="77" x="183.469" y="1.22313" width="57.487" height="55.0408">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="78" x="66.0489" y="179.8" width="52.5945" height="57.487">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="79" x="184.692" y="240.956" width="53.8176" height="57.487">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="81" x="64.8258" y="417.087" width="55.0408" height="58.7102">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="82" x="485.582" y="118.643" width="51.3714" height="55.0408">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="83" x="722.869" y="62.3795" width="52.5945" height="55.0408">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="84" x="784.025" y="358.377" width="55.0408" height="57.487">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="85" x="845.182" y="298.443" width="55.0408" height="62.3795">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="87" x="66.0489" y="840.289" width="52.5945" height="53.8176">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+  <object id="88" x="363.269" y="898.999" width="56.2639" height="58.7102">
+   <properties>
+    <property name="Collision" value="true"/>
+   </properties>
+   <ellipse/>
+  </object>
+ </objectgroup>
+</map>
