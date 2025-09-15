@@ -9,7 +9,6 @@ import com.badlogic.gdx.math.Vector2
 enum class BulletOwner {
     PLAYER, ENEMY
 }
-
 sealed class BulletType(val assetPath: String) {
     data object Gun : BulletType("character/Characters/green_hand.png")
     data object Machine : BulletType("character/Characters/red_hand.png")
