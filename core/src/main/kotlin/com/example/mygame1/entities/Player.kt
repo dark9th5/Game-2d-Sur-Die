@@ -256,6 +256,19 @@ class Player(
         else
             "$ammoInMagazine / $maxBullets"
         font.draw(batch, ammoText, barX, barY - 20f)
+        
+        // Display active effects
+        var effectY = barY - 60f
+        if (speedBoostTimer > 0f) {
+            font.color = Color.YELLOW
+            font.draw(batch, "Speed Boost: ${speedBoostTimer.toInt()}s", barX, effectY)
+            effectY -= 25f
+        }
+        if (fovBoostTimer > 0f) {
+            font.color = Color.CYAN
+            font.draw(batch, "FOV Boost: ${fovBoostTimer.toInt()}s", barX, effectY)
+        }
+        
         font.data.setScale(1.0f)
         font.color = Color.WHITE
     }
