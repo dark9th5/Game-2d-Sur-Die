@@ -2,16 +2,18 @@ package com.example.mygame1.entities
 
 import EnemyAI
 import GameState
+import EnemyAction
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Sprite
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector2
+import com.badlogic.gdx.math.Rectangle
 import ktx.assets.disposeSafely
 import ktx.assets.toInternalFile
 import kotlin.random.Random
-
+import com.example.mygame1.audio.AudioManager
 class Enemy(
     characterIndex: Int = -1,
     weaponIndex: Int = -1,
@@ -50,6 +52,12 @@ class Enemy(
 
     private var shootCooldown = 0f
 
+    // CollisionManager lưu cho enemy
+    private var collisionManager: com.example.mygame1.world.CollisionManager? = null
+    fun setCollisionManager(collisionManager: com.example.mygame1.world.CollisionManager) {
+        this.collisionManager = collisionManager
+    }
+
     fun selectCharacter(index: Int) {
         if (index in characterTextures.indices) {
             currentCharacterIndex = index
@@ -63,10 +71,13 @@ class Enemy(
     fun selectWeapon(index: Int) {
         if (index in weapons.indices) {
             currentWeaponIndex = index
-            shootCooldown = 0f // Sửa: reset cooldown khi đổi súng
+            shootCooldown = 0f // reset cooldown khi đổi súng
         }
     }
 
+    /**
+     * Hàm update logic đầy đủ, dùng AI ngoài (state, decideAction)
+     */
     fun update(
         delta: Float,
         state: GameState,
@@ -84,20 +95,35 @@ class Enemy(
                 isReloading = false
             }
         }
-
         shootCooldown = (shootCooldown - delta).coerceAtLeast(0f)
 
-        when (val action = ai.decideAction(state)) {
+        // LẤY VISION RANGE TỪ VŨ KHÍ HIỆN TẠI (giống world)
+        val visionRange = getGunStats(weapon.type).bulletRange
+
+        // Quyết định hành động AI (phải truyền visionRange)
+        when (val action = ai.decideAction(state, visionRange)) {
             is EnemyAction.Move -> {
                 val dir = action.direction.nor()
+                // Di chuyển có kiểm tra va chạm
+                val vx = dir.x * speed * delta
+                val vy = dir.y * speed * delta
+                val rectX = Rectangle(position.x + vx, position.y, sprite.width - 2f, sprite.height - 2f)
+                if (collisionManager == null || !collisionManager!!.isBlocked(rectX)) {
+                    position.x = (position.x + vx).coerceIn(0f, mapWidth - sprite.width)
+                }
+                val rectY = Rectangle(position.x, position.y + vy, sprite.width - 2f, sprite.height - 2f)
+                if (collisionManager == null || !collisionManager!!.isBlocked(rectY)) {
+                    position.y = (position.y + vy).coerceIn(0f, mapHeight - sprite.height)
+                }
                 sprite.rotation = dir.angleDeg()
             }
             is EnemyAction.Shoot -> {
-                sprite.rotation = action.direction.angleDeg()
+                val dir = action.direction.nor()
+                sprite.rotation = dir.angleDeg()
                 attack()
             }
             is EnemyAction.Idle -> {
-                // Đứng yên hoặc tuần tra ngẫu nhiên
+                // Đứng yên
             }
         }
         sprite.setPosition(position.x, position.y)
@@ -131,22 +157,15 @@ class Enemy(
         )
     }
 
-    // Lấy vị trí đầu súng giống player
     private fun getGunTipPosition(): Vector2 {
-        // Offset từ tâm sprite đến đầu súng (giả sử cạnh phải giữa)
         val gunOffsetX = sprite.width / 2f
         val gunOffsetY = 0f
         val angleRad = sprite.rotation * MathUtils.degreesToRadians
-
         val rotatedOffsetX = gunOffsetX * MathUtils.cos(angleRad) - gunOffsetY * MathUtils.sin(angleRad)
         val rotatedOffsetY = gunOffsetX * MathUtils.sin(angleRad) + gunOffsetY * MathUtils.cos(angleRad)
-
         val centerX = position.x + sprite.width / 2f
         val centerY = position.y + sprite.height / 2f
-        return Vector2(
-            centerX + rotatedOffsetX,
-            centerY + rotatedOffsetY
-        )
+        return Vector2(centerX + rotatedOffsetX, centerY + rotatedOffsetY)
     }
 
     fun attack() {
@@ -176,9 +195,14 @@ class Enemy(
         )
         ammoInMagazine--
         shootCooldown = 1f / stats.fireRate
+        // Play sound if not silencer
+        when (weapon.type) {
+            GunType.Gun -> AudioManager.playSound("sounds/submachine-gun-79846.mp3",0.25f)
+            GunType.Machine -> AudioManager.playSound("sounds/machine-gun-129928.mp3",0.25f)
+            GunType.Silencer -> {AudioManager.playSound("sounds/gun-shot-359196.mp3",0.25f)}
+        }
     }
 
-    // Gọi hàm này khi muốn reload thủ công cho enemy
     fun manualReload(forceFull: Boolean = false) {
         if (isReloading) return
         if (ammoInMagazine == maxBullets) return

@@ -29,7 +29,7 @@ class Bullet(
     val position: Vector2,
     val direction: Vector2,
     val owner: BulletOwner,
-    val speed: Float = 100f,
+    val speed: Float = 600f,
     val maxDistance: Float = 600f,
     val size: Float = 8f,
     val damage: Int = 10

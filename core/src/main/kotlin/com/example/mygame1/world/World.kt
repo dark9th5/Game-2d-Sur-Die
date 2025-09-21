@@ -26,12 +26,18 @@ import com.example.mygame1.entities.Player
 import com.example.mygame1.entities.Enemy
 import com.example.mygame1.input.InputHandler
 import com.example.mygame1.entities.Bullet
+import com.example.mygame1.entities.getGunStats
+import com.example.mygame1.entities.Item
+import com.example.mygame1.entities.ItemType
+import kotlin.random.Random
 import ktx.style.get
 import ktx.style.skin
 
 class World(
     val stage: Stage,
-    val skin: Skin
+    val skin: Skin,
+    characterIndex: Int = -1,
+    weaponIndex: Int = -1
 ) {
 
     private val map: TiledMap = TmxMapLoader().load("map/sampleMap.tmx")
@@ -39,15 +45,35 @@ class World(
 
     private val renderer = OrthogonalTiledMapRenderer(map)
     val camera = OrthographicCamera()
-    val player = Player()
+    val player = Player(characterIndex, weaponIndex)
     val enemies = mutableListOf<Enemy>()
     private val starField = StarField(400, sizeScale = 0.25f)
 
     private val swapWeaponButton: TextButton
     private val reloadButton: TextButton
+
     private val collisionManager = CollisionManager(tileLayer, map)
 
-    // Spawn enemy tại vị trí hợp lệ (không bị vật cản)
+    // Splash_bg cuộn ngoài rìa map
+    private val splashBgTexture = Texture("background/splash_bg.png")
+    private var splashBgScrollX = 0f
+    private val splashBgScrollSpeed = 60f
+
+    // Item system
+    val items = mutableListOf<Item>()
+
+    // UI icon buff
+    private val iconSpeed = Item.textureSpeed
+    private val iconVision = Item.textureVision
+
+    // Buff/hiệu ứng (World chỉ quản lý logic, player sẽ render)
+    private var speedBuffTime = 0f
+    private var visionBuffTime = 0f
+    private var speedBuffPercent = 0f
+    private val defaultPlayerSpeed = 200f
+    private val defaultCameraZoom = 0.5f
+    private val visionBuffZoom = 0.75f
+
     private fun getValidSpawnPosition(): Vector2 {
         val mapW = getMapWidth()
         val mapH = getMapHeight()
@@ -66,21 +92,21 @@ class World(
 
     init {
         camera.setToOrtho(false)
-        camera.zoom = 0.5f
+        camera.zoom = defaultCameraZoom
         camera.update()
         player.setSpawnLeftMiddle(getMapHeight())
         val mapW = getMapWidth()
         val mapH = getMapHeight()
         for (i in 0 until 7) {
             val spawnPos = getValidSpawnPosition()
-            enemies.add(
-                Enemy(
-                    characterIndex = player.characterIndex,
-                    weaponIndex = player.weaponIndex,
-                    spawnPosition = spawnPos
-                )
-            )
+            val enemy = Enemy(spawnPosition = spawnPos)
+            enemy.setCollisionManager(collisionManager)
+            enemies.add(enemy)
         }
+
+        // Truyền icon buff cho player
+        player.iconSpeed = iconSpeed
+        player.iconVision = iconVision
 
         skin.add("buttonUp", Texture("control/buttonLong_blue.png"))
         skin.add("buttonDown", Texture("control/buttonLong_blue_pressed.png"))
@@ -140,9 +166,20 @@ class World(
         stage.addActor(reloadButton)
     }
 
+    fun trySpawnItem(pos: Vector2) {
+        val r = Random.nextFloat()
+        val type = when {
+            r < 0.4f -> ItemType.SPEED
+            r < 0.8f -> ItemType.HEAL
+            else -> ItemType.VISION
+        }
+        items.add(Item(type, pos.cpy()))
+    }
+
     fun update(delta: Float, touchpad: Touchpad) {
+        splashBgScrollX = (splashBgScrollX + splashBgScrollSpeed * delta) % splashBgTexture.width
+
         val input = InputHandler(touchpad)
-        // --- PLAYER COLLISION --- (Di chuyển mượt khi sát tường)
         val dx = input.dx
         val dy = input.dy
         if (dx != 0f || dy != 0f) {
@@ -150,16 +187,13 @@ class World(
             val vx = com.badlogic.gdx.math.MathUtils.cos(angle) * player.speed * delta
             val vy = com.badlogic.gdx.math.MathUtils.sin(angle) * player.speed * delta
 
-            // TÁCH KIỂM TRA VA CHẠM THEO TỪNG TRỤC X/Y
             val newX = (player.position.x + vx).coerceIn(0f, getMapWidth() - player.sprite.width)
             val newY = (player.position.y + vy).coerceIn(0f, getMapHeight() - player.sprite.height)
 
-            // Di chuyển X trước
             val rectX = Rectangle(newX, player.position.y, player.sprite.width - 2f, player.sprite.height - 2f)
             if (!collisionManager.isBlocked(rectX)) {
                 player.position.x = newX
             }
-            // Di chuyển Y sau
             val rectY = Rectangle(player.position.x, newY, player.sprite.width - 2f, player.sprite.height - 2f)
             if (!collisionManager.isBlocked(rectY)) {
                 player.position.y = newY
@@ -178,14 +212,14 @@ class World(
         )
         starField.update(delta, getMapWidth(), getMapHeight())
 
-        // --- ENEMY COLLISION ---
         enemies.forEach { enemy ->
             val state = GameState(
                 enemyPosition = enemy.position,
                 playerPosition = player.position.cpy(),
                 bullets = player.bullets + enemies.flatMap { it.bullets }
             )
-            val action = enemy.ai.decideAction(state)
+            val visionRange = getGunStats(enemy.weapon.type).bulletRange
+            val action = enemy.ai.decideAction(state, visionRange)
             if (action is EnemyAction.Move) {
                 val dir = action.direction.nor()
                 val vx = dir.x * enemy.speed * delta
@@ -193,7 +227,6 @@ class World(
                 val newX = (enemy.position.x + vx).coerceIn(0f, getMapWidth() - enemy.sprite.width)
                 val newY = (enemy.position.y + vy).coerceIn(0f, getMapHeight() - enemy.sprite.height)
 
-                // TÁCH KIỂM TRA VA CHẠM X/Y CHO ENEMY
                 val rectX = Rectangle(newX, enemy.position.y, enemy.sprite.width - 2f, enemy.sprite.height - 2f)
                 if (!collisionManager.isBlocked(rectX)) {
                     enemy.position.x = newX
@@ -213,10 +246,8 @@ class World(
             )
         }
 
-        // --- BULLET COLLISION ---
         player.bullets.forEach { bullet ->
             if (!bullet.isActive) return@forEach
-            // SỬA: dùng bounding box của viên đạn để kiểm tra tường/vật cản
             if (collisionManager.isBulletBlocked(bullet.bounds())) {
                 bullet.isActive = false
             }
@@ -232,6 +263,63 @@ class World(
 
         handleCollisions()
 
+        // ITEM: update và remove
+        items.forEach { it.update(delta) }
+        items.removeAll { it.isExpired() }
+
+        // ITEM: player pick up
+        val playerRect = player.sprite.boundingRectangle
+        val picked = items.filter { playerRect.overlaps(it.bounds()) }
+        for (item in picked) {
+            when (item.type) {
+                ItemType.HEAL -> {
+                    player.health = (player.health + 5).coerceAtMost(player.maxHealth)
+                }
+                ItemType.SPEED -> {
+                    val percent = 0.1f + Random.nextFloat() * 0.2f
+                    if (speedBuffTime <= 0f) speedBuffPercent = percent
+                    speedBuffTime += 10f
+                }
+                ItemType.VISION -> {
+                    visionBuffTime += 15f
+                }
+            }
+            item.aliveTime = 999f
+        }
+        items.removeAll { it.isExpired() }
+
+        // Buff tốc độ
+        if (speedBuffTime > 0f) {
+            speedBuffTime -= delta
+            player.speed = defaultPlayerSpeed * (1f + speedBuffPercent)
+            player.speedBuffTime = speedBuffTime
+            player.speedBuffPercent = speedBuffPercent
+            if (speedBuffTime <= 0f) {
+                player.speed = defaultPlayerSpeed
+                speedBuffPercent = 0f
+                player.speedBuffPercent = 0f
+            }
+        } else {
+            player.speedBuffTime = 0f
+            player.speedBuffPercent = 0f
+        }
+
+        // Buff camera (zoom mượt, nhìn xa hơn khi có vision)
+        if (visionBuffTime > 0f) {
+            visionBuffTime -= delta
+            player.visionBuffTime = visionBuffTime
+            camera.zoom += (visionBuffZoom - camera.zoom) * 0.12f
+            if (visionBuffTime <= 0f) {
+                player.visionBuffTime = 0f
+                camera.zoom += (defaultCameraZoom - camera.zoom) * 0.12f
+            }
+        } else {
+            player.visionBuffTime = 0f
+            if (camera.zoom > defaultCameraZoom) {
+                camera.zoom += (defaultCameraZoom - camera.zoom) * 0.12f
+            }
+        }
+
         camera.position.set(
             player.position.x + player.sprite.width / 2,
             player.position.y + player.sprite.height / 2,
@@ -242,20 +330,39 @@ class World(
 
     fun render(batch: SpriteBatch, font: BitmapFont, blankTexture: Texture) {
         batch.projectionMatrix = camera.combined
-        val mapW = getMapWidth()
-        val mapH = getMapHeight()
+
+        // Vẽ splash_bg cuộn ngoài rìa map
+        val camLeft = camera.position.x - camera.viewportWidth * 0.5f * camera.zoom
+        val camBottom = camera.position.y - camera.viewportHeight * 0.5f * camera.zoom
+        val camRight = camera.position.x + camera.viewportWidth * 0.5f * camera.zoom
+        val camTop = camera.position.y + camera.viewportHeight * 0.5f * camera.zoom
+
+        val tileWidth = splashBgTexture.width.toFloat()
+        val tileHeight = splashBgTexture.height.toFloat()
+        val scrollOffsetX = splashBgScrollX % tileWidth
+        var x = camLeft - scrollOffsetX
+
+        while (x < camRight) {
+            var y = camBottom - (camBottom % tileHeight) - tileHeight
+            while (y < camTop) {
+                batch.draw(splashBgTexture, x, y, tileWidth, tileHeight)
+                y += tileHeight
+            }
+            x += tileWidth
+        }
+
         batch.color = Color.WHITE
         for (star in starField.stars) {
-            val x = star.position.x
-            val y = star.position.y
-            val outside = x < 0f || x > mapW || y < 0f || y > mapH
+            val xStar = star.position.x
+            val yStar = star.position.y
+            val outside = xStar < 0f || xStar > getMapWidth() || yStar < 0f || yStar > getMapHeight()
             if (outside) {
                 val color = Color(star.brightness, star.brightness, star.brightness, 1f)
                 batch.color = color
                 batch.draw(
                     starField.starTexture,
-                    x - star.size / 2,
-                    y - star.size / 2,
+                    xStar - star.size / 2,
+                    yStar - star.size / 2,
                     star.size / 2,
                     star.size / 2,
                     star.size,
@@ -277,8 +384,15 @@ class World(
         renderer.setView(camera)
         renderer.render()
 
+        // Render item trước player/enemy
+        items.forEach { it.render(batch) }
+
         player.render(batch)
         enemies.forEach { enemy -> enemy.render(batch, font) }
+
+        // --- UI cố định trên màn hình: vẽ toàn bộ UI player tại đây ---
+        batch.projectionMatrix = stage.camera.combined
+        player.renderUI(batch, blankTexture, font, stage.viewport.worldWidth, stage.viewport.worldHeight)
     }
 
     fun dispose() {
@@ -287,6 +401,8 @@ class World(
         player.dispose()
         enemies.forEach { it.dispose() }
         starField.dispose()
+        splashBgTexture.disposeSafely()
+        // Không dispose iconSpeed/iconVision ở đây vì dùng chung với Item
     }
 
     private fun getMapWidth(): Float =
@@ -300,7 +416,6 @@ class World(
             if (!bullet.isActive) continue
             for (enemy in enemies) {
                 if (enemy.isDead()) continue
-                // SỬA: kiểm tra bounding box viên đạn overlaps với bounding box enemy
                 if (bullet.bounds().overlaps(enemy.sprite.boundingRectangle)) {
                     enemy.takeDamage(bullet.damage)
                     bullet.isActive = false
@@ -321,6 +436,24 @@ class World(
             enemy.bullets.removeAll { !it.isActive }
         }
 
+        // ITEM: spawn khi enemy chết
+        val deadEnemies = enemies.filter { it.isDead() }
+        for (enemy in deadEnemies) {
+            trySpawnItem(enemy.position)
+        }
         enemies.removeAll { it.isDead() }
+    }
+
+    fun isPlayerTouchingBorder(padding: Float = 10f): Boolean {
+        val x = player.position.x
+        val y = player.position.y
+        val width = player.sprite.width
+        val height = player.sprite.height
+        return (
+            x <= padding ||
+                y <= padding ||
+                x + width >= getMapWidth() - padding ||
+                y + height >= getMapHeight() - padding
+            )
     }
 }

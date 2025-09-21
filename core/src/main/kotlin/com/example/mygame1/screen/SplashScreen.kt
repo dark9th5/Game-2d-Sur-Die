@@ -13,7 +13,7 @@ import ktx.graphics.use
 class SplashScreen(private val game: Main) : KtxScreen {
 
     private var elapsed = 0f
-    private val logo = Texture("logo/Logo.png")
+    private val logo = Texture("logo/Logo1.png")
     private val background = Texture(Gdx.files.internal("background/splash_bg.png"))
 
     // Font chữ to hơn

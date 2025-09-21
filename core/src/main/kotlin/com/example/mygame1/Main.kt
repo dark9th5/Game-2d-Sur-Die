@@ -12,18 +12,19 @@ import com.example.mygame1.screen.GameScreen
 
 class Main : KtxGame<KtxScreen>() {
     val batch by lazy { SpriteBatch() }
+    var selectedCharacterIndex: Int = -1 // Chỉ số nhân vật
+    var selectedWeaponIndex: Int = -1    // Chỉ số vũ khí
+
     override fun create() {
         addScreen(SplashScreen(this))
         addScreen(MainMenuScreen(this))
-        addScreen(GameScreen(this))
         addScreen(GameOverScreen(this))
         setScreen<SplashScreen>()
         addScreen(PauseMenuScreen(this))
-
     }
+
     override fun dispose() {
         super.dispose()
         AudioManager.dispose()
     }
 }
-

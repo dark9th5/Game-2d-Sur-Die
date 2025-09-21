@@ -13,6 +13,7 @@ import com.example.mygame1.input.PlayerAction
 import ktx.assets.disposeSafely
 import ktx.assets.toInternalFile
 import kotlin.random.Random
+import com.example.mygame1.audio.AudioManager
 
 val characterTextures = listOf(
     "character/Characters/hitman1_hold.png",
@@ -27,17 +28,17 @@ val characterTextures = listOf(
 )
 
 class Player(
-    characterIndex: Int = -1
+    characterIndex: Int = 0,
+    weaponIndex: Int = -1
 ) {
-    private var currentCharacterIndex =
-        if (characterIndex in characterTextures.indices) characterIndex else randomizeCharacter()
-    private var texture = Texture(characterTextures[currentCharacterIndex].toInternalFile())
-    val sprite = Sprite(texture).apply { setOriginCenter() }
+    private var currentCharacterIndex: Int
+    private var texture: Texture
+    val sprite: Sprite
     var position = Vector2(120f, 120f)
 
     var health: Int = 100
     val maxHealth: Int = 100
-    val speed = 200f
+    var speed = 200f
 
     private val detectRange: Float = 600f
 
@@ -45,16 +46,17 @@ class Player(
     var ammoInMagazine = maxBullets
     var isReloading = false
     private var reloadTimer = 0f
-    private var reloadTarget = maxBullets // Số viên sẽ nạp lại (toàn bộ hoặc số đã mất)
+    private var reloadTarget = maxBullets
     private val reloadTimePerBullet = 0.2f
-    private val reloadTimeFull = 4f // Tự động reload khi hết đạn
+    private val reloadTimeFull = 4f
 
     val weapons: List<Weapon> = listOf(
         Weapon(GunType.Gun),
         Weapon(GunType.Machine),
         Weapon(GunType.Silencer)
     )
-    private var currentWeaponIndex: Int = randomizeWeapon()
+    private var currentWeaponIndex: Int =
+        if (weaponIndex in weapons.indices) weaponIndex else Random.nextInt(weapons.size)
 
     val weapon: Weapon
         get() = weapons[currentWeaponIndex]
@@ -70,8 +72,19 @@ class Player(
 
     private var shootCooldown = 0f
 
-    private fun randomizeWeapon(): Int = Random.nextInt(weapons.size)
-    private fun randomizeCharacter(): Int = Random.nextInt(characterTextures.size)
+    // --- Các biến UI buff ---
+    var speedBuffTime = 0f
+    var speedBuffPercent = 0f
+    var visionBuffTime = 0f
+
+    lateinit var iconSpeed: Texture
+    lateinit var iconVision: Texture
+
+    init {
+        currentCharacterIndex = characterIndex.coerceIn(0, characterTextures.size - 1)
+        texture = Texture(characterTextures[currentCharacterIndex].toInternalFile())
+        sprite = Sprite(texture).apply { setOriginCenter() }
+    }
 
     fun selectCharacter(index: Int) {
         if (index in characterTextures.indices) {
@@ -82,11 +95,13 @@ class Player(
             sprite.setOriginCenter()
         }
     }
+
     fun setSpawnLeftMiddle(mapHeight: Float) {
-        position.x = 0f // Sát cạnh trái, có thể là 0f nếu muốn
+        position.x = 0f
         position.y = (mapHeight - sprite.height) / 2f
         sprite.setPosition(position.x, position.y)
     }
+
     fun selectWeapon(
         index: Int,
         enemyPosition: Vector2,
@@ -94,7 +109,7 @@ class Player(
     ) {
         if (index in weapons.indices) {
             currentWeaponIndex = index
-            shootCooldown = 0f // Sửa: reset cooldown khi đổi súng
+            shootCooldown = 0f
             val currentState = GameState(
                 enemyPosition = enemyPosition,
                 playerPosition = position.cpy(),
@@ -112,7 +127,6 @@ class Player(
         mapWidth: Float = 800f,
         mapHeight: Float = 600f
     ) {
-        // Tự động reload khi hết đạn
         if (ammoInMagazine == 0 && !isReloading) {
             manualReload(forceFull = true)
         }
@@ -148,14 +162,11 @@ class Player(
         bullets.removeAll { !it.isActive }
     }
 
-    // Chỉnh vị trí đầu súng theo offset trên sprite (giả sử là cạnh phải giữa sprite)
     private fun getGunTipPosition(): Vector2 {
-        // Offset từ tâm sprite đến đầu súng (giả sử cạnh phải giữa)
         val gunOffsetX = sprite.width / 2f
         val gunOffsetY = 0f
         val angleRad = sprite.rotation * MathUtils.degreesToRadians
 
-        // Xoay offset theo góc
         val rotatedOffsetX = gunOffsetX * MathUtils.cos(angleRad) - gunOffsetY * MathUtils.sin(angleRad)
         val rotatedOffsetY = gunOffsetX * MathUtils.sin(angleRad) + gunOffsetY * MathUtils.cos(angleRad)
 
@@ -181,11 +192,15 @@ class Player(
         screenWidth: Float,
         screenHeight: Float
     ) {
+        val marginLeft = 40f
+        var uiY = screenHeight - 40f
+
+        // --- Thanh máu ---
         val barWidth = 360f
         val barHeight = 32f
-        val barX = 40f
-        val barY = screenHeight - barHeight - 40f
-
+        uiY -= barHeight
+        val barX = marginLeft
+        val barY = uiY
         val healthRatio = health / maxHealth.toFloat()
         batch.color = Color.DARK_GRAY
         batch.draw(blankTexture, barX - 3, barY - 3, barWidth + 6, barHeight + 6)
@@ -195,15 +210,51 @@ class Player(
         batch.draw(blankTexture, barX, barY, barWidth * healthRatio, barHeight)
         batch.color = Color.WHITE
 
+        // --- Số lượng đạn ---
+        val ammoHeight = 32f
+        uiY -= ammoHeight
         font.color = Color.SALMON
         font.data.setScale(2.0f)
         val ammoText = if (isReloading)
             "Reloading..."
         else
             "$ammoInMagazine / $maxBullets"
-        font.draw(batch, ammoText, barX, barY - 20f)
+        font.draw(batch, ammoText, marginLeft, uiY + ammoHeight * 0.7f)
         font.data.setScale(1.0f)
         font.color = Color.WHITE
+
+        // --- Icon buff: to gấp đôi, luôn nằm dưới dòng đạn ---
+        val iconSize = 64f // gấp đôi (nếu trước là 32)
+        var buffY = uiY - iconSize - 24f // cách dòng đạn một khoảng đủ lớn
+
+        if (::iconSpeed.isInitialized && speedBuffTime > 0f) {
+            batch.draw(iconSpeed, marginLeft, buffY, iconSize, iconSize)
+            font.data.setScale(4.0f) // text buff to gấp đôi
+            font.color = Color.ORANGE
+            font.draw(
+                batch,
+                "${speedBuffTime.toInt()}s",
+                marginLeft + iconSize + 18f,
+                buffY + iconSize * 0.75f
+            )
+            buffY -= iconSize + 16f
+            font.data.setScale(1.0f)
+            font.color = Color.WHITE
+        }
+        if (::iconVision.isInitialized && visionBuffTime > 0f) {
+            batch.draw(iconVision, marginLeft, buffY, iconSize, iconSize)
+            font.data.setScale(4.0f)
+            font.color = Color.ORANGE
+            font.draw(
+                batch,
+                "${visionBuffTime.toInt()}s",
+                marginLeft + iconSize + 18f,
+                buffY + iconSize * 0.75f
+            )
+            buffY -= iconSize + 16f
+            font.data.setScale(1.0f)
+            font.color = Color.WHITE
+        }
     }
 
     fun attack(
@@ -217,13 +268,11 @@ class Player(
         val angleRad = sprite.rotation * MathUtils.degreesToRadians
         val direction = Vector2(MathUtils.cos(angleRad), MathUtils.sin(angleRad))
 
-        // Lấy tâm người chơi
         val centerX = position.x + sprite.width / 2f
         val centerY = position.y + sprite.height / 2f
         val playerCenter = Vector2(centerX, centerY)
 
-        // Đẩy viên đạn ra xa tâm 1 khoảng bằng chiều dài súng
-        val weaponLength = weapon.sprite.width // hoặc weapon.sprite.height nếu sprite xoay đứng
+        val weaponLength = weapon.sprite.width
         val bulletStart = playerCenter.cpy().add(direction.cpy().scl(weaponLength))
 
         bullets.add(
@@ -233,7 +282,7 @@ class Player(
                     GunType.Machine -> BulletType.Machine
                     GunType.Silencer -> BulletType.Silencer
                 },
-                position = bulletStart,   // ✅ spawn cách tâm 1 khoảng weaponLength
+                position = bulletStart,
                 direction = direction,
                 owner = BulletOwner.PLAYER,
                 maxDistance = stats.bulletRange,
@@ -250,9 +299,14 @@ class Player(
             bullets = bulletsOnMap
         )
         actionHistory.add(currentState to PlayerAction.Shoot)
+
+        when (weapon.type) {
+            GunType.Gun -> AudioManager.playSound("sounds/submachine-gun-79846.mp3", 0.25f)
+            GunType.Machine -> AudioManager.playSound("sounds/machine-gun-129928.mp3", 0.25f)
+            GunType.Silencer -> AudioManager.playSound("sounds/gun-shot-359196.mp3", 0.25f)
+        }
     }
 
-    // Gọi hàm này khi bấm nút reload
     fun manualReload(forceFull: Boolean = false) {
         if (isReloading) return
         if (ammoInMagazine == maxBullets) return

@@ -18,13 +18,16 @@ class EnemyAI(
     // Tạo hướng ngẫu nhiên (vector chuẩn hóa)
     private fun randomDirection(): Vector2 {
         val angle = Random.nextFloat() * 360f
-        return Vector2(Math.cos(Math.toRadians(angle.toDouble())).toFloat(), Math.sin(Math.toRadians(angle.toDouble())).toFloat()).nor()
+        return Vector2(
+            Math.cos(Math.toRadians(angle.toDouble())).toFloat(),
+            Math.sin(Math.toRadians(angle.toDouble())).toFloat()
+        ).nor()
     }
 
     // AI cứng: phát hiện, di chuyển, bắn
-    fun decideAction(state: GameState): EnemyAction {
+    fun decideAction(state: GameState, visionRange: Float): EnemyAction {
         val distToPlayer = state.enemyPosition.dst(state.playerPosition)
-        val vision = 400f // Tăng gấp đôi tầm phát hiện
+        val vision = visionRange
         val shoot = 200f
 
         // 1. Phát hiện player
