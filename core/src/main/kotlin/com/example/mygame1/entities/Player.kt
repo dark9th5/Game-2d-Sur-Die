@@ -37,7 +37,15 @@ class Player(
 
     var health: Int = 100
     val maxHealth: Int = 100
-    val speed = 200f
+    private val baseSpeed = 200f
+    var speed: Float = baseSpeed
+
+    // Item effects system
+    private var speedBoostTimer = 0f
+    private var fovBoostTimer = 0f
+    private var speedMultiplier = 1f
+    var cameraZoomBonus = 0f
+        private set
 
     private val detectRange: Float = 600f
 
@@ -104,6 +112,49 @@ class Player(
         }
     }
 
+    // Item effect methods
+    fun applyItemEffect(item: Item) {
+        when (item.type) {
+            ItemType.HEALTH -> {
+                health = (health + 5).coerceAtMost(maxHealth)
+            }
+            ItemType.SPEED -> {
+                // Tăng tốc 10-30% trong 10s, chỉ cộng dồn thời gian
+                if (speedBoostTimer <= 0f) {
+                    speedMultiplier = 1f + (0.1f + Random.nextFloat() * 0.2f) // 1.1f đến 1.3f
+                    speed = baseSpeed * speedMultiplier
+                }
+                speedBoostTimer = 10f // Reset về 10 giây
+            }
+            ItemType.FOV -> {
+                // Mở rộng góc nhìn thêm 0.2f trong 15s, chỉ cộng dồn thời gian
+                if (fovBoostTimer <= 0f) {
+                    cameraZoomBonus = 0.2f
+                }
+                fovBoostTimer = 15f // Reset về 15 giây
+            }
+        }
+    }
+
+    private fun updateEffects(delta: Float) {
+        // Cập nhật hiệu ứng tăng tốc
+        if (speedBoostTimer > 0f) {
+            speedBoostTimer -= delta
+            if (speedBoostTimer <= 0f) {
+                speedMultiplier = 1f
+                speed = baseSpeed
+            }
+        }
+
+        // Cập nhật hiệu ứng FOV
+        if (fovBoostTimer > 0f) {
+            fovBoostTimer -= delta
+            if (fovBoostTimer <= 0f) {
+                cameraZoomBonus = 0f
+            }
+        }
+    }
+
     fun update(
         delta: Float,
         input: InputHandler,
@@ -125,6 +176,9 @@ class Player(
         }
 
         shootCooldown = (shootCooldown - delta).coerceAtLeast(0f)
+
+        // Cập nhật hiệu ứng từ items
+        updateEffects(delta)
 
         val dx = input.dx
         val dy = input.dy
