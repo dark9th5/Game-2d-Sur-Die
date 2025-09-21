@@ -24,6 +24,7 @@ import com.badlogic.gdx.graphics.Color
 import ktx.assets.disposeSafely
 import com.example.mygame1.entities.Player
 import com.example.mygame1.entities.Enemy
+import com.example.mygame1.entities.ItemManager
 import com.example.mygame1.input.InputHandler
 import com.example.mygame1.entities.Bullet
 import ktx.style.get
@@ -42,6 +43,8 @@ class World(
     val player = Player()
     val enemies = mutableListOf<Enemy>()
     private val starField = StarField(400, sizeScale = 0.25f)
+    private val itemManager = ItemManager()
+    private val baseCameraZoom = 0.5f
 
     private val swapWeaponButton: TextButton
     private val reloadButton: TextButton
@@ -66,7 +69,7 @@ class World(
 
     init {
         camera.setToOrtho(false)
-        camera.zoom = 0.5f
+        camera.zoom = baseCameraZoom
         camera.update()
         player.setSpawnLeftMiddle(getMapHeight())
         val mapW = getMapWidth()
@@ -232,6 +235,18 @@ class World(
 
         handleCollisions()
 
+        // Update item manager
+        itemManager.update(delta)
+
+        // Update camera with FOV bonus
+        val targetZoom = baseCameraZoom - player.cameraZoomBonus
+        camera.zoom = if (player.cameraZoomBonus > 0f) {
+            // Smooth interpolation for FOV effect
+            com.badlogic.gdx.math.MathUtils.lerp(camera.zoom, targetZoom, 2f * delta)
+        } else {
+            targetZoom
+        }
+
         camera.position.set(
             player.position.x + player.sprite.width / 2,
             player.position.y + player.sprite.height / 2,
@@ -279,6 +294,9 @@ class World(
 
         player.render(batch)
         enemies.forEach { enemy -> enemy.render(batch, font) }
+        
+        // Render items
+        itemManager.render(batch)
     }
 
     fun dispose() {
@@ -287,6 +305,7 @@ class World(
         player.dispose()
         enemies.forEach { it.dispose() }
         starField.dispose()
+        itemManager.dispose()
     }
 
     private fun getMapWidth(): Float =
@@ -296,6 +315,7 @@ class World(
         map.properties.get("height", Int::class.java) * map.properties.get("tileheight", Int::class.java).toFloat()
 
     private fun handleCollisions() {
+        // Player bullets vs enemies
         for (bullet in player.bullets) {
             if (!bullet.isActive) continue
             for (enemy in enemies) {
@@ -310,6 +330,7 @@ class World(
         }
         player.bullets.removeAll { !it.isActive }
 
+        // Enemy bullets vs player
         for (enemy in enemies) {
             for (bullet in enemy.bullets) {
                 if (!bullet.isActive) continue
@@ -321,6 +342,20 @@ class World(
             enemy.bullets.removeAll { !it.isActive }
         }
 
+        // Spawn items when enemies die
+        val deadEnemies = enemies.filter { it.isDead() }
+        for (enemy in deadEnemies) {
+            // Spawn item at enemy position
+            itemManager.spawnItemAt(enemy.position.cpy())
+        }
+
+        // Remove dead enemies
         enemies.removeAll { it.isDead() }
+
+        // Check item pickups
+        val collectedItems = itemManager.checkCollisions(player)
+        for (item in collectedItems) {
+            player.applyItemEffect(item)
+        }
     }
 }
