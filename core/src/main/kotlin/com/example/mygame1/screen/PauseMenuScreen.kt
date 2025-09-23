@@ -9,6 +9,8 @@ import com.example.mygame1.Main
 import ktx.app.KtxScreen
 import ktx.app.clearScreen
 import ktx.assets.disposeSafely
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 
 class PauseMenuScreen(private val game: Main) : KtxScreen {
     private val stage = Stage()
@@ -19,19 +21,22 @@ class PauseMenuScreen(private val game: Main) : KtxScreen {
 
         val table = Table().apply { setFillParent(true) }
 
-        val resumeButton = TextButton("Resume", skin).apply {
-            addListener { _ ->
+        val resumeButton = TextButton("Resume", skin)
+        resumeButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 game.setScreen<GameScreen>() // quay lại GameScreen
-                true
             }
-        }
+        })
 
-        val quitButton = TextButton("Quit to Menu", skin).apply {
-            addListener { _ ->
+        val quitButton = TextButton("Quit to Menu", skin)
+        quitButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                // Gỡ & dispose GameScreen cũ rồi về MainMenu
+                val old = game.removeScreen<GameScreen>()
+                old?.dispose()
                 game.setScreen<MainMenuScreen>()
-                true
             }
-        }
+        })
 
         table.add(Label("Paused", skin)).padBottom(40f).row()
         table.add(resumeButton).pad(10f).row()

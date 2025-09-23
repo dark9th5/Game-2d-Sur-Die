@@ -1,9 +1,13 @@
 package com.example.mygame1.ui
 
 import com.badlogic.gdx.graphics.Color
-import com.badlogic.gdx.scenes.scene2d.Action
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.ui.Dialog
+import com.badlogic.gdx.scenes.scene2d.ui.Label
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane
+import com.badlogic.gdx.scenes.scene2d.ui.Skin
+import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.example.mygame1.data.ScoreManager
 
 class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
@@ -17,20 +21,20 @@ class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
         }
         contentTable.add(title).row()
 
-        val scores = ScoreManager.getScores()
+        // Lấy lịch sử điểm và sắp xếp giảm dần
+        val scores = ScoreManager.getScoreHistory().sortedDescending()
         if (scores.isEmpty()) {
             val empty = Label("No Data", skin).apply { setFontScale(2f) }
             contentTable.add(empty).padTop(20f).row()
         } else {
             val listTable = Table(skin)
-            var rank = 1
-            scores.forEach { sc ->
+            for ((index, sc) in scores.withIndex()) {
+                val rank = index + 1
                 val line = Label("Rank.$rank : $sc PTS", skin).apply {
                     setFontScale(3f)
                     color = Color.WHITE
                 }
                 listTable.add(line).left().pad(6f).row()
-                rank++
             }
             val scroll = ScrollPane(listTable, skin)
             contentTable.add(scroll).width(600f).height(400f).padTop(10f).row()
@@ -53,9 +57,5 @@ class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
             )
         }
         return d
-    }
-
-    override fun hide(action: Action?) {
-        super.hide(action)
     }
 }

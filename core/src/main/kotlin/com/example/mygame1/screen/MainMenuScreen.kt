@@ -136,17 +136,18 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         weaponImage = Image().apply { isVisible = false }
         // --- End Weapon UI ---
 
-        characterButton.addListener { _ ->
-            leftButton.isVisible = true
-            rightButton.isVisible = true
-            characterImage?.isVisible = true
+        characterButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                leftButton.isVisible = true
+                rightButton.isVisible = true
+                characterImage?.isVisible = true
 
-            if (selectedCharacterIndex < 0 || selectedCharacterIndex >= characterTextures.size) {
-                selectedCharacterIndex = 0
+                if (selectedCharacterIndex < 0 || selectedCharacterIndex >= characterTextures.size) {
+                    selectedCharacterIndex = 0
+                }
+                updateCharacterSprite(panelSize, panelSize)
             }
-            updateCharacterSprite(panelSize, panelSize)
-            true
-        }
+        })
 
         leftButton.addListener(object : ClickListener() {
             override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
@@ -161,17 +162,18 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             }
         })
 
-        weaponButton.addListener { _ ->
-            weaponLeftButton.isVisible = true
-            weaponRightButton.isVisible = true
-            weaponImage?.isVisible = true
+        weaponButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                weaponLeftButton.isVisible = true
+                weaponRightButton.isVisible = true
+                weaponImage?.isVisible = true
 
-            if (selectedWeaponIndex < 0 || selectedWeaponIndex >= weaponTypes.size) {
-                selectedWeaponIndex = 0
+                if (selectedWeaponIndex < 0 || selectedWeaponIndex >= weaponTypes.size) {
+                    selectedWeaponIndex = 0
+                }
+                updateWeaponSprite(panelSize, panelSize)
             }
-            updateWeaponSprite(panelSize, panelSize)
-            true
-        }
+        })
         weaponLeftButton.addListener(object : ClickListener() {
             override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
                 selectedWeaponIndex = (selectedWeaponIndex - 1 + weaponTypes.size) % weaponTypes.size
@@ -185,20 +187,31 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             }
         })
 
-        playButton.addListener { _ ->
-            if (selectedCharacterIndex < 0 || selectedCharacterIndex >= characterTextures.size) {
-                selectedCharacterIndex = Random.nextInt(characterTextures.size)
-            }
-            if (selectedWeaponIndex < 0 || selectedWeaponIndex >= weaponTypes.size) {
-                selectedWeaponIndex = Random.nextInt(weaponTypes.size)
-            }
-            game.selectedCharacterIndex = selectedCharacterIndex
-            game.selectedWeaponIndex = selectedWeaponIndex
+        playButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                // Bảo đảm có lựa chọn hợp lệ
+                if (selectedCharacterIndex < 0 || selectedCharacterIndex >= characterTextures.size) {
+                    selectedCharacterIndex = Random.nextInt(characterTextures.size)
+                }
+                if (selectedWeaponIndex < 0 || selectedWeaponIndex >= weaponTypes.size) {
+                    selectedWeaponIndex = Random.nextInt(weaponTypes.size)
+                }
+                // Lưu vào game
+                game.selectedCharacterIndex = selectedCharacterIndex
+                game.selectedWeaponIndex = selectedWeaponIndex
 
-            game.addScreen(GameScreen(game))
-            game.setScreen<GameScreen>()
-            true
-        }
+                // Dừng nhạc menu
+                AudioManager.stopMusic()
+
+                // Loại bỏ & giải phóng GameScreen cũ (nếu có) trước khi tạo mới
+                val old = game.removeScreen<GameScreen>()
+                old?.dispose()
+
+                // Đăng ký và chuyển sang GameScreen mới
+                game.addScreen(GameScreen(game))
+                game.setScreen<GameScreen>()
+            }
+        })
 
         // Layout
         table.add(title).padBottom(50f).row()
