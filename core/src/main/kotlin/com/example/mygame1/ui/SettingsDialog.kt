@@ -28,8 +28,7 @@ class SettingsDialog(
         isModal = true
         isResizable = false
 
-        // Tiêu đề và chữ = cỡ nút Play
-        titleLabel.setFontScale(3f)
+        titleLabel.setFontScale(5f)
 
         val content = contentTable
         content.pad(24f)

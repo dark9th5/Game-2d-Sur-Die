@@ -25,7 +25,6 @@ import ktx.assets.disposeSafely
 import com.example.mygame1.entities.Player
 import com.example.mygame1.entities.Enemy
 import com.example.mygame1.input.InputHandler
-import com.example.mygame1.entities.Bullet
 import com.example.mygame1.entities.getGunStats
 import com.example.mygame1.entities.Item
 import com.example.mygame1.entities.ItemType
@@ -73,6 +72,12 @@ class World(
     private val defaultPlayerSpeed = 200f
     private val defaultCameraZoom = 0.5f
     private val visionBuffZoom = 0.75f
+
+    // Score & Respawn
+    var score: Int = 0
+
+    private data class RespawnEntry(var timeLeft: Float)
+    private val respawnQueue = mutableListOf<RespawnEntry>()
 
     private fun getValidSpawnPosition(): Vector2 {
         val mapW = getMapWidth()
@@ -320,6 +325,31 @@ class World(
             }
         }
 
+        // Xử lý cộng điểm, spawn item và lên lịch respawn khi địch chết
+        val deadEnemies = enemies.filter { it.isDead() }
+        for (enemy in deadEnemies) {
+            trySpawnItem(enemy.position)
+            score += 10
+            respawnQueue.add(RespawnEntry(5f))
+        }
+        enemies.removeAll { it.isDead() }
+
+        // Xử lý respawn sau 5 giây
+        if (respawnQueue.isNotEmpty()) {
+            val iterator = respawnQueue.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                entry.timeLeft -= delta
+                if (entry.timeLeft <= 0f) {
+                    val spawnPos = getValidSpawnPosition()
+                    val newEnemy = Enemy(spawnPosition = spawnPos)
+                    newEnemy.setCollisionManager(collisionManager)
+                    enemies.add(newEnemy)
+                    iterator.remove()
+                }
+            }
+        }
+
         camera.position.set(
             player.position.x + player.sprite.width / 2,
             player.position.y + player.sprite.height / 2,
@@ -390,6 +420,16 @@ class World(
         player.render(batch)
         enemies.forEach { enemy -> enemy.render(batch, font) }
 
+        // Vẽ Score bám theo camera: giữa mép trên
+        val scoreText = "Score: $score"
+        font.data.setScale(2.5f)
+        font.color = Color.ORANGE
+        val layout = com.badlogic.gdx.graphics.g2d.GlyphLayout(font, scoreText)
+        val xCenter = camera.position.x - layout.width / 2f
+        val yTop = camera.position.y + camera.viewportHeight * 0.5f * camera.zoom - 10f
+        font.draw(batch, layout, xCenter, yTop)
+        font.data.setScale(1f)
+
         // --- UI cố định trên màn hình: vẽ toàn bộ UI player tại đây ---
         batch.projectionMatrix = stage.camera.combined
         player.renderUI(batch, blankTexture, font, stage.viewport.worldWidth, stage.viewport.worldHeight)
@@ -436,12 +476,8 @@ class World(
             enemy.bullets.removeAll { !it.isActive }
         }
 
-        // ITEM: spawn khi enemy chết
-        val deadEnemies = enemies.filter { it.isDead() }
-        for (enemy in deadEnemies) {
-            trySpawnItem(enemy.position)
-        }
-        enemies.removeAll { it.isDead() }
+        // Lưu ý: KHÔNG remove enemy chết tại đây nữa.
+        // Việc spawn item, cộng điểm và respawn được xử lý trong update() sau khi va chạm.
     }
 
     fun isPlayerTouchingBorder(padding: Float = 10f): Boolean {

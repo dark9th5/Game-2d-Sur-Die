@@ -1,0 +1,61 @@
+package com.example.mygame1.ui
+
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.scenes.scene2d.Action
+import com.badlogic.gdx.scenes.scene2d.Stage
+import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.example.mygame1.data.ScoreManager
+
+class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
+
+    init {
+        contentTable.defaults().pad(24f)
+
+        val title = Label("HighScore", skin).apply {
+            setFontScale(5f)
+            color = Color.GOLD
+        }
+        contentTable.add(title).row()
+
+        val scores = ScoreManager.getScores()
+        if (scores.isEmpty()) {
+            val empty = Label("No Data", skin).apply { setFontScale(2f) }
+            contentTable.add(empty).padTop(20f).row()
+        } else {
+            val listTable = Table(skin)
+            var rank = 1
+            scores.forEach { sc ->
+                val line = Label("Rank.$rank : $sc PTS", skin).apply {
+                    setFontScale(3f)
+                    color = Color.WHITE
+                }
+                listTable.add(line).left().pad(6f).row()
+                rank++
+            }
+            val scroll = ScrollPane(listTable, skin)
+            contentTable.add(scroll).width(600f).height(400f).padTop(10f).row()
+        }
+
+        val closeBtn = TextButton("Close", skin).apply { label.setFontScale(4f) }
+        button(closeBtn, true)
+        pack()
+    }
+
+    override fun show(stage: Stage?): Dialog {
+        val d = super.show(stage)
+        stage?.let {
+            val w = it.viewport.worldWidth * 0.6f
+            val h = it.viewport.worldHeight * 0.6f
+            setSize(w, h)
+            setPosition(
+                (it.viewport.worldWidth - w) / 2f,
+                (it.viewport.worldHeight - h) / 2f
+            )
+        }
+        return d
+    }
+
+    override fun hide(action: Action?) {
+        super.hide(action)
+    }
+}

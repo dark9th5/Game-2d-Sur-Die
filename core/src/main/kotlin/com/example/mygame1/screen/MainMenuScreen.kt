@@ -46,7 +46,11 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
     private lateinit var settingsButton: ImageButton
     private var gearTexture: Texture? = null
 
-    // Kích thước icon settings 4x (ví dụ 512)
+    // List button + texture (bảng điểm)
+    private lateinit var listButton: ImageButton
+    private var listTexture: Texture? = null
+
+    // Kích thước icon settings/list 4x (ví dụ 512)
     private val settingsButtonSize = 128f
 
     private fun positionSettingsButton() {
@@ -55,6 +59,13 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             settingsButton.setPosition(
                 stage.viewport.worldWidth - settingsButton.width - margin,
                 stage.viewport.worldHeight - settingsButton.height - margin
+            )
+        }
+        if (::listButton.isInitialized && ::settingsButton.isInitialized) {
+            val marginBetween = 24f
+            listButton.setPosition(
+                settingsButton.x,
+                settingsButton.y - listButton.height - marginBetween
             )
         }
     }
@@ -220,18 +231,37 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             setMinSize(settingsButtonSize, settingsButtonSize)
         }
         settingsButton = ImageButton(gearDrawable).apply {
-            setSize(settingsButtonSize, settingsButtonSize)           // Actor = 512x512
-            image.setScaling(Scaling.stretch)                         // Ảnh fill đủ cell
-            imageCell.size(settingsButtonSize, settingsButtonSize)    // Cell ảnh = 512x512
-            pad(0f)                                                   // Không thêm padding
+            setSize(settingsButtonSize, settingsButtonSize)
+            image.setScaling(Scaling.stretch)
+            imageCell.size(settingsButtonSize, settingsButtonSize)
+            pad(0f)
         }
         stage.addActor(settingsButton)
-        positionSettingsButton()
         settingsButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 com.example.mygame1.ui.SettingsDialog(skin).show(stage)
             }
         })
+
+        // List (scoreboard) icon đặt dưới settings
+        listTexture = Texture(Gdx.files.internal("icons/list.png")).also {
+            it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+        }
+        val listDrawable = TextureRegionDrawable(TextureRegion(listTexture))
+        listButton = ImageButton(listDrawable).apply {
+            setSize(settingsButtonSize, settingsButtonSize)
+            image.setScaling(Scaling.stretch)
+            imageCell.size(settingsButtonSize, settingsButtonSize)
+            pad(0f)
+        }
+        stage.addActor(listButton)
+        listButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                com.example.mygame1.ui.ScoreboardDialog(skin).show(stage)
+            }
+        })
+
+        positionSettingsButton()
     }
 
     override fun render(delta: Float) {
@@ -273,5 +303,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         characterSprite?.texture?.dispose()
         weaponSprite?.texture?.dispose()
         gearTexture?.dispose()
+        listTexture?.dispose()
     }
 }

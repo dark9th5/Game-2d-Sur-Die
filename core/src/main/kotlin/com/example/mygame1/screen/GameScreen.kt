@@ -160,6 +160,7 @@ class GameScreen(private val game: Main) : KtxScreen {
             }
 
             if (world.player.isDead()) {
+                com.example.mygame1.data.ScoreManager.addScore(world.score)
                 game.setScreen<GameOverScreen>()
                 return
             }

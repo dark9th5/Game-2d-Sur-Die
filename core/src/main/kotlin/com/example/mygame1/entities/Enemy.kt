@@ -58,6 +58,11 @@ class Enemy(
         this.collisionManager = collisionManager
     }
 
+    // Thêm vào class Enemy:
+    var reviveTimer: Float = 0f
+    var isWaitingRevive: Boolean = false
+    val spawnPoint = spawnPosition.cpy()
+
     fun selectCharacter(index: Int) {
         if (index in characterTextures.indices) {
             currentCharacterIndex = index
@@ -129,6 +134,9 @@ class Enemy(
         sprite.setPosition(position.x, position.y)
         bullets.forEach { it.update(delta) }
         bullets.removeAll { !it.isActive }
+
+
+
     }
 
     fun render(batch: SpriteBatch, font: com.badlogic.gdx.graphics.g2d.BitmapFont? = null) {

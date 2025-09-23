@@ -230,7 +230,7 @@ class Player(
         if (::iconSpeed.isInitialized && speedBuffTime > 0f) {
             batch.draw(iconSpeed, marginLeft, buffY, iconSize, iconSize)
             font.data.setScale(4.0f) // text buff to gấp đôi
-            font.color = Color.ORANGE
+            font.color = Color.RED
             font.draw(
                 batch,
                 "${speedBuffTime.toInt()}s",
@@ -244,7 +244,7 @@ class Player(
         if (::iconVision.isInitialized && visionBuffTime > 0f) {
             batch.draw(iconVision, marginLeft, buffY, iconSize, iconSize)
             font.data.setScale(4.0f)
-            font.color = Color.ORANGE
+            font.color = Color.RED
             font.draw(
                 batch,
                 "${visionBuffTime.toInt()}s",
