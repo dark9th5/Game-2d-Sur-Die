@@ -5,20 +5,24 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Sprite
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.Image
+import com.badlogic.gdx.scenes.scene2d.ui.ImageButton
 import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
-import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.viewport.ScreenViewport
+import com.badlogic.gdx.utils.Scaling
 import com.example.mygame1.Main
 import com.example.mygame1.audio.AudioManager
-import com.example.mygame1.world.StarField
-import com.example.mygame1.entities.characterTextures
 import com.example.mygame1.entities.GunType
+import com.example.mygame1.entities.characterTextures
+import com.example.mygame1.world.StarField
 import ktx.app.KtxScreen
 import kotlin.random.Random
 
@@ -38,6 +42,23 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
     private var weaponImage: Image? = null
     private val weaponTypes = GunType.values()
 
+    // Settings button + texture
+    private lateinit var settingsButton: ImageButton
+    private var gearTexture: Texture? = null
+
+    // Kích thước icon settings 4x (ví dụ 512)
+    private val settingsButtonSize = 128f
+
+    private fun positionSettingsButton() {
+        if (::settingsButton.isInitialized) {
+            val margin = 50f
+            settingsButton.setPosition(
+                stage.viewport.worldWidth - settingsButton.width - margin,
+                stage.viewport.worldHeight - settingsButton.height - margin
+            )
+        }
+    }
+
     override fun show() {
         Gdx.input.inputProcessor = stage
         AudioManager.playMusic("sounds/menu_music.mp3")
@@ -47,21 +68,18 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         table.setFillParent(true)
         stage.addActor(table)
 
-        // Tiêu đề game
         val title = Label("Survival - Die", skin, "default").apply {
-            setFontScale(3f)
+            setFontScale(5f)
             color = Color.WHITE
         }
 
-        // Nút Play
         val playButton = TextButton("Play", skin).apply {
-            label.setFontScale(3f)
+            label.setFontScale(5f)
             label.color = Color.WHITE
         }
 
-        // Nút Character
         val characterButton = TextButton("Character", skin).apply {
-            label.setFontScale(3f)
+            label.setFontScale(5f)
             label.color = Color.WHITE
         }
 
@@ -83,13 +101,11 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         }
 
         val panelSize = 100f
-        characterImage = Image().apply {
-            isVisible = false
-        }
+        characterImage = Image().apply { isVisible = false }
 
         // --- Weapon UI ---
         val weaponButton = TextButton("Weapon", skin).apply {
-            label.setFontScale(3f)
+            label.setFontScale(5f)
             label.color = Color.WHITE
         }
         val weaponLeftButton = TextButton("<", skin).apply {
@@ -106,12 +122,9 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             width = arrowButtonSize
             height = arrowButtonSize
         }
-        weaponImage = Image().apply {
-            isVisible = false
-        }
+        weaponImage = Image().apply { isVisible = false }
         // --- End Weapon UI ---
 
-        // Sự kiện bấm Character
         characterButton.addListener { _ ->
             leftButton.isVisible = true
             rightButton.isVisible = true
@@ -137,7 +150,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             }
         })
 
-        // Sự kiện bấm Weapon
         weaponButton.addListener { _ ->
             weaponLeftButton.isVisible = true
             weaponRightButton.isVisible = true
@@ -172,13 +184,12 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             game.selectedCharacterIndex = selectedCharacterIndex
             game.selectedWeaponIndex = selectedWeaponIndex
 
-            // Sửa lỗi: chỉ addScreen nếu chưa có
-                game.addScreen(GameScreen(game))
+            game.addScreen(GameScreen(game))
             game.setScreen<GameScreen>()
             true
         }
 
-        // Layout character
+        // Layout
         table.add(title).padBottom(50f).row()
         table.add(playButton).width(200f).height(panelSize).padBottom(20f).row()
         table.add(characterButton).width(250f).height(panelSize).padBottom(20f).row()
@@ -191,7 +202,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         leftButton.isVisible = false
         rightButton.isVisible = false
 
-        // Layout weapon
         table.add(weaponButton).width(250f).height(panelSize).padBottom(20f).row()
         val weaponRow = Table()
         weaponRow.add(weaponLeftButton).width(arrowButtonSize).height(arrowButtonSize).padRight(25f)
@@ -201,6 +211,27 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         weaponImage?.isVisible = false
         weaponLeftButton.isVisible = false
         weaponRightButton.isVisible = false
+
+        // Settings icon 4x (512x512), vùng chạm = hình, cách viền 50f
+        gearTexture = Texture(Gdx.files.internal("ui/gear.png")).also {
+            it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+        }
+        val gearDrawable = TextureRegionDrawable(TextureRegion(gearTexture)).apply {
+            setMinSize(settingsButtonSize, settingsButtonSize)
+        }
+        settingsButton = ImageButton(gearDrawable).apply {
+            setSize(settingsButtonSize, settingsButtonSize)           // Actor = 512x512
+            image.setScaling(Scaling.stretch)                         // Ảnh fill đủ cell
+            imageCell.size(settingsButtonSize, settingsButtonSize)    // Cell ảnh = 512x512
+            pad(0f)                                                   // Không thêm padding
+        }
+        stage.addActor(settingsButton)
+        positionSettingsButton()
+        settingsButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                com.example.mygame1.ui.SettingsDialog(skin).show(stage)
+            }
+        })
     }
 
     override fun render(delta: Float) {
@@ -229,6 +260,11 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         weaponImage?.drawable = TextureRegionDrawable(weaponSprite)
     }
 
+    override fun resize(width: Int, height: Int) {
+        stage.viewport.update(width, height, true)
+        positionSettingsButton()
+    }
+
     override fun dispose() {
         stage.dispose()
         skin.dispose()
@@ -236,5 +272,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         starField.dispose()
         characterSprite?.texture?.dispose()
         weaponSprite?.texture?.dispose()
+        gearTexture?.dispose()
     }
 }

@@ -3,6 +3,7 @@ package com.example.mygame1.audio
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.audio.Music
 import com.badlogic.gdx.audio.Sound
+import com.example.mygame1.data.SettingsManager
 import ktx.assets.disposeSafely
 
 object AudioManager {
@@ -10,6 +11,11 @@ object AudioManager {
     private val sounds = mutableMapOf<String, Sound>()
 
     fun playMusic(file: String, looping: Boolean = true, volume: Float = 0.5f) {
+        if (!SettingsManager.musicEnabled) {
+            music?.disposeSafely()
+            music = null
+            return
+        }
         music?.disposeSafely()
         music = Gdx.audio.newMusic(Gdx.files.internal(file)).apply {
             isLooping = looping
@@ -23,6 +29,7 @@ object AudioManager {
     }
 
     fun playSound(file: String, volume: Float = 1f) {
+        if (!SettingsManager.soundEnabled) return
         val sound = sounds.getOrPut(file) {
             Gdx.audio.newSound(Gdx.files.internal(file))
         }
@@ -34,5 +41,4 @@ object AudioManager {
         sounds.values.forEach { it.disposeSafely() }
         sounds.clear()
     }
-
 }

@@ -12,11 +12,18 @@ object SettingsManager {
             prefs.putInteger("highScore", value)
             prefs.flush()
         }
+
     var musicEnabled: Boolean
         get() = prefs.getBoolean("musicEnabled", true)
         set(value) {
             prefs.putBoolean("musicEnabled", value)
             prefs.flush()
         }
-}
 
+    var soundEnabled: Boolean
+        get() = prefs.getBoolean("soundEnabled", true)
+        set(value) {
+            prefs.putBoolean("soundEnabled", value)
+            prefs.flush()
+        }
+}
