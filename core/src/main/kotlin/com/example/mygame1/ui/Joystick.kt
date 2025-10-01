@@ -20,7 +20,7 @@ object Joystick {
         }
 
         return Touchpad(10f, style).apply {
-            setBounds(100f, 100f, 300f, 300f) // vị trí + kích thước joystick
+            setBounds(100f, 100f, 220f, 220f) // thu nhỏ joystick
             stage.addActor(this)
         }
     }

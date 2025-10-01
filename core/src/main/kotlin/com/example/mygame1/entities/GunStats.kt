@@ -26,4 +26,28 @@ fun getGunStats(type: GunType): GunStats = when(type) {
         bulletSize = 30f,      // nhỏ bằng 1/2
         bulletRange = 1200f   // gấp đôi
     )
+    GunType.Sword -> GunStats(
+        fireRate = 3f,   // dùng cho cooldown chém (3 đòn/s)
+        damage = 25, // chỉnh lại còn 20
+        bulletSize = 0f,
+        bulletRange = 70f // tầm chém (bán kính)
+    )
+    GunType.Bomb -> GunStats(
+        fireRate = 0.066f, // 1/15s chỉ để tránh chia 0
+        damage = 50,
+        bulletSize = 0f,
+        bulletRange = 150f // bán kính nổ
+    )
+    GunType.Shield -> GunStats(
+        fireRate = 0.1f,
+        damage = 0,
+        bulletSize = 0f,
+        bulletRange = 0f
+    ) // Shield không gây sát thương
+    GunType.Trap -> GunStats(
+        fireRate = 0.2f,
+        damage = 0,
+        bulletSize = 0f,
+        bulletRange = 140f
+    ) // Trap dùng range làm bán kính ảnh hưởng
 }

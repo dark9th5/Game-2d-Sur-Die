@@ -3,6 +3,7 @@ package com.example.mygame1.world
 import GameState
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
@@ -51,7 +52,10 @@ class World(
     private val swapWeaponButton: TextButton
     private val reloadButton: TextButton
 
-    private val collisionManager = CollisionManager(tileLayer, map)
+    val collisionManager = CollisionManager(tileLayer, map) // was private
+
+    private val bombs = mutableListOf<Bomb>()
+    fun addBomb(bomb: Bomb) { bombs.add(bomb) }
 
     // Splash_bg cuộn ngoài rìa map
     private val splashBgTexture = Texture("background/splash_bg.png")
@@ -79,6 +83,31 @@ class World(
     private data class RespawnEntry(var timeLeft: Float)
     private val respawnQueue = mutableListOf<RespawnEntry>()
 
+    private data class SlashEffect(
+        val pivotX: Float,
+        val pivotY: Float,
+        val startAngle: Float,
+        val endAngle: Float,
+        val radius: Float,
+        var elapsed: Float = 0f,
+        val duration: Float = 0.18f
+    )
+    private val slashEffects = mutableListOf<SlashEffect>()
+
+    fun addSlashEffect(pivotX: Float, pivotY: Float, startAngle: Float, endAngle: Float, radius: Float) {
+        slashEffects.add(SlashEffect(pivotX, pivotY, startAngle, endAngle, radius))
+    }
+
+    // Texture 1x1 dùng để vẽ hiệu ứng (chưa khai báo trước đó)
+    private val pixelTexture: Texture by lazy {
+        val pm = Pixmap(1,1, Pixmap.Format.RGBA8888)
+        pm.setColor(1f,1f,1f,1f)
+        pm.fill()
+        val t = Texture(pm)
+        pm.dispose()
+        t
+    }
+
     private fun getValidSpawnPosition(): Vector2 {
         val mapW = getMapWidth()
         val mapH = getMapHeight()
@@ -93,6 +122,52 @@ class World(
             }
         }
         return Vector2(mapW / 2f, mapH / 2f)
+    }
+
+    private fun uiScale(): Float {
+        val baseH = 1080f
+        return (stage.viewport.worldHeight / baseH).coerceIn(0.6f, 1.5f)
+    }
+
+    private fun positionActionButtons() {
+        val scale = uiScale()
+        val margin = 40f * scale
+        val swapW = 120f * scale
+        val swapH = 60f * scale
+        val reloadW = 120f * scale
+        val reloadH = 60f * scale
+        swapWeaponButton.setSize(swapW, swapH)
+        reloadButton.setSize(reloadW, reloadH)
+        val rightX = stage.viewport.worldWidth - swapW - margin
+        swapWeaponButton.setPosition(rightX, 120f * scale)
+        reloadButton.setPosition(rightX, swapWeaponButton.y + swapWeaponButton.height + (120f * scale))
+        swapWeaponButton.label.setFontScale(2f * scale)
+        reloadButton.label.setFontScale(2f * scale)
+    }
+
+    fun positionActionButtonsLeftOfAttack(attackX: Float, attackY: Float, attackWidth: Float, attackHeight: Float, scale: Float) {
+        // Đặt 2 nút đối xứng qua tâm attackPad: Reload ở trên, Swap ở dưới
+        val gap = 80f * scale // tăng khoảng cách giữa hai nút
+        val swapW = 120f * scale
+        val swapH = 60f * scale
+        val reloadW = 120f * scale
+        val reloadH = 60f * scale
+        val centerY = attackY + attackHeight / 2f
+        val targetX = (attackX - gap - swapW).coerceAtLeast(10f * scale)
+        // Reload trên tâm
+        val reloadY = centerY + gap / 2f
+        // Swap dưới tâm sao cho khoảng cách tới tâm giống reload
+        val swapY = centerY - swapH - gap / 2f
+        reloadButton.setSize(reloadW, reloadH)
+        swapWeaponButton.setSize(swapW, swapH)
+        reloadButton.setPosition(targetX, reloadY)
+        swapWeaponButton.setPosition(targetX, swapY)
+        reloadButton.label.setFontScale(2f * scale)
+        swapWeaponButton.label.setFontScale(2f * scale)
+    }
+
+    fun resizeUI() {
+        positionActionButtons()
     }
 
     init {
@@ -136,14 +211,16 @@ class World(
         }
 
         swapWeaponButton = TextButton("Swap gun", swapButtonStyle)
-        swapWeaponButton.label.setFontScale(2.0f)
-        swapWeaponButton.setSize(120f, 60f)
-        swapWeaponButton.setPosition(1700f, 120f)
         swapWeaponButton.addListener(object : InputListener() {
             override fun touchDown(
                 event: InputEvent?,
                 x: Float, y: Float, pointer: Int, button: Int
             ): Boolean {
+                // Nếu đang ở special mode (sword/bomb) thì thoát về dùng súng hiện tại
+                if (player.specialMode != com.example.mygame1.entities.Player.SpecialMode.NONE) {
+                    player.setSpecialMode(com.example.mygame1.entities.Player.SpecialMode.NONE)
+                    return true
+                }
                 val nextIndex = (player.weaponIndex + 1) % player.weapons.size
                 player.selectWeapon(
                     nextIndex,
@@ -156,9 +233,6 @@ class World(
         stage.addActor(swapWeaponButton)
 
         reloadButton = TextButton("Reload", reloadButtonStyle)
-        reloadButton.label.setFontScale(2.0f)
-        reloadButton.setSize(120f, 60f)
-        reloadButton.setPosition(1700f, 300f)
         reloadButton.addListener(object : InputListener() {
             override fun touchDown(
                 event: InputEvent?,
@@ -169,17 +243,35 @@ class World(
             }
         })
         stage.addActor(reloadButton)
+
+        positionActionButtons()
+    }
+
+    fun rootEnemiesAt(center: Vector2, radius: Float, duration: Float) {
+        enemies.forEach { e ->
+            val dist2 = e.position.dst2(center)
+            if (dist2 <= radius * radius) {
+                e.rootTimeLeft = maxOf(e.rootTimeLeft, duration)
+            }
+        }
     }
 
     fun trySpawnItem(pos: Vector2) {
         val r = Random.nextFloat()
+        // New distribution: SPEED 30%, HEAL 30%, VISION 15%, ARMOR 25%
         val type = when {
-            r < 0.4f -> ItemType.SPEED
-            r < 0.8f -> ItemType.HEAL
-            else -> ItemType.VISION
+            r < 0.30f -> ItemType.SPEED
+            r < 0.60f -> ItemType.HEAL
+            r < 0.75f -> ItemType.VISION
+            else -> ItemType.ARMOR // 25%
         }
         items.add(Item(type, pos.cpy()))
     }
+
+    // Trap system
+    data class Trap(val position: Vector2, var aliveTime: Float = 30f)
+    private val traps = mutableListOf<Trap>()
+    fun addTrap(pos: Vector2) { traps.add(Trap(pos)) }
 
     fun update(delta: Float, touchpad: Touchpad) {
         splashBgScrollX = (splashBgScrollX + splashBgScrollSpeed * delta) % splashBgTexture.width
@@ -277,21 +369,26 @@ class World(
         val picked = items.filter { playerRect.overlaps(it.bounds()) }
         for (item in picked) {
             when (item.type) {
-                ItemType.HEAL -> {
-                    player.health = (player.health + 5).coerceAtMost(player.maxHealth)
-                }
+                ItemType.HEAL -> { player.health = (player.health + player.maxHealth / 2).coerceAtMost(player.maxHealth) }
                 ItemType.SPEED -> {
                     val percent = 0.1f + Random.nextFloat() * 0.2f
                     if (speedBuffTime <= 0f) speedBuffPercent = percent
                     speedBuffTime += 10f
                 }
-                ItemType.VISION -> {
-                    visionBuffTime += 15f
-                }
+                ItemType.VISION -> { visionBuffTime += 15f }
+                ItemType.ARMOR -> { player.armorCount += 1 }
             }
             item.aliveTime = 999f
         }
         items.removeAll { it.isExpired() }
+
+        // BOMBS: update và remove
+        bombs.forEach { it.update(delta, this) }
+        bombs.removeAll { it.isFinished() }
+
+        // TRAPS: update và remove
+        traps.forEach { it.aliveTime -= delta }
+        traps.removeAll { it.aliveTime <= 0f }
 
         // Buff tốc độ
         if (speedBuffTime > 0f) {
@@ -349,6 +446,10 @@ class World(
                 }
             }
         }
+
+        // Cập nhật hiệu ứng chém
+        slashEffects.forEach { it.elapsed += delta }
+        slashEffects.removeAll { it.elapsed >= it.duration }
 
         camera.position.set(
             player.position.x + player.sprite.width / 2,
@@ -416,6 +517,36 @@ class World(
 
         // Render item trước player/enemy
         items.forEach { it.render(batch) }
+        bombs.forEach { it.render(batch) }
+
+        // Vẽ trap
+        val trapTex = runCatching { Texture("character/Weapons/weapon_trap.png") }.getOrNull()
+        traps.forEach { trap ->
+            trapTex?.let {
+                batch.draw(it, trap.position.x - 16f, trap.position.y - 16f, 32f, 32f)
+            }
+        }
+
+        // Render hiệu ứng chém (vẽ các đoạn nhỏ tạo cung)
+        if (slashEffects.isNotEmpty()) {
+            val step = 6f // độ mỗi đoạn
+            slashEffects.forEach { eff ->
+                val alpha = 1f - (eff.elapsed / eff.duration)
+                val color = Color(1f, 1f, 0.2f, alpha * 0.6f)
+                batch.color = color
+                var a = eff.startAngle
+                while (a <= eff.endAngle) {
+                    val rad = a * com.badlogic.gdx.math.MathUtils.degreesToRadians
+                    val x2 = eff.pivotX + com.badlogic.gdx.math.MathUtils.cos(rad) * eff.radius
+                    val y2 = eff.pivotY + com.badlogic.gdx.math.MathUtils.sin(rad) * eff.radius
+                    val w = 12f
+                    val h = 4f
+                    batch.draw(pixelTexture, x2 - w/2f, y2 - h/2f, w, h)
+                    a += step
+                }
+            }
+            batch.color = Color.WHITE
+        }
 
         player.render(batch)
         enemies.forEach { enemy -> enemy.render(batch, font) }
@@ -442,6 +573,8 @@ class World(
         enemies.forEach { it.dispose() }
         starField.dispose()
         splashBgTexture.disposeSafely()
+        bombs.forEach { it.dispose() }
+        pixelTexture.disposeSafely()
         // Không dispose iconSpeed/iconVision ở đây vì dùng chung với Item
     }
 
@@ -469,6 +602,14 @@ class World(
             for (bullet in enemy.bullets) {
                 if (!bullet.isActive) continue
                 if (bullet.bounds().overlaps(player.sprite.boundingRectangle)) {
+                    // Shield front blocking
+                    if (player.specialMode == Player.SpecialMode.SHIELD) {
+                        val facingAngleRad = player.sprite.rotation * com.badlogic.gdx.math.MathUtils.degreesToRadians
+                        val facing = Vector2(com.badlogic.gdx.math.MathUtils.cos(facingAngleRad), com.badlogic.gdx.math.MathUtils.sin(facingAngleRad))
+                        // bullet.direction là hướng bay (từ enemy -> player). Nếu dot < 0 nghĩa là tới từ phía trước mặt player
+                        val dot = bullet.direction.dot(facing)
+                        if (dot < 0f) { bullet.isActive = false; continue }
+                    }
                     player.takeDamage(bullet.damage)
                     bullet.isActive = false
                 }

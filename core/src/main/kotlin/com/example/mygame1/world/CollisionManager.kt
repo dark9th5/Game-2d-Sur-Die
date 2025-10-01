@@ -126,4 +126,20 @@ class CollisionManager(
         }
         return false
     }
+
+    fun isLineBlocked(start: com.badlogic.gdx.math.Vector2, end: com.badlogic.gdx.math.Vector2): Boolean {
+        // Lấy mẫu từng bước nhỏ theo đường thẳng, tạo rect nhỏ kiểm tra
+        val steps = 20
+        val dx = (end.x - start.x) / steps
+        val dy = (end.y - start.y) / steps
+        val probeSize = 8f
+        val rect = Rectangle()
+        for (i in 0..steps) {
+            val x = start.x + dx * i - probeSize/2f
+            val y = start.y + dy * i - probeSize/2f
+            rect.set(x, y, probeSize, probeSize)
+            if (isBlocked(rect)) return true
+        }
+        return false
+    }
 }

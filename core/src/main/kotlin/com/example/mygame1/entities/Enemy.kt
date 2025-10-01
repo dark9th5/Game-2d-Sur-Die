@@ -11,8 +11,8 @@ import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Rectangle
 import ktx.assets.disposeSafely
-import ktx.assets.toInternalFile
 import kotlin.random.Random
+import com.badlogic.gdx.Gdx
 import com.example.mygame1.audio.AudioManager
 class Enemy(
     characterIndex: Int = -1,
@@ -22,7 +22,7 @@ class Enemy(
 ) {
     private var currentCharacterIndex =
         if (characterIndex in characterTextures.indices) characterIndex else Random.nextInt(characterTextures.size)
-    private var texture = Texture(characterTextures[currentCharacterIndex].toInternalFile())
+    private var texture = Texture(Gdx.files.internal(characterTextures[currentCharacterIndex]))
     val sprite = Sprite(texture).apply { setOriginCenter() }
     var position = spawnPosition.cpy()
     var health: Int = 100
@@ -63,11 +63,14 @@ class Enemy(
     var isWaitingRevive: Boolean = false
     val spawnPoint = spawnPosition.cpy()
 
+    // Thêm thuộc tính mới rootTimeLeft
+    var rootTimeLeft: Float = 0f // thời gian còn lại bị trói (trap)
+
     fun selectCharacter(index: Int) {
         if (index in characterTextures.indices) {
             currentCharacterIndex = index
             texture.disposeSafely()
-            texture = Texture(characterTextures[currentCharacterIndex].toInternalFile())
+            texture = Texture(Gdx.files.internal(characterTextures[currentCharacterIndex]))
             sprite.setTexture(texture)
             sprite.setOriginCenter()
         }
@@ -101,6 +104,15 @@ class Enemy(
             }
         }
         shootCooldown = (shootCooldown - delta).coerceAtLeast(0f)
+
+        // Nếu đang bị trói thì chỉ giảm thời gian & update đạn, bỏ qua AI
+        if (rootTimeLeft > 0f) {
+            rootTimeLeft -= delta
+            bullets.forEach { it.update(delta) }
+            bullets.removeAll { !it.isActive }
+            sprite.setPosition(position.x, position.y)
+            return
+        }
 
         // LẤY VISION RANGE TỪ VŨ KHÍ HIỆN TẠI (giống world)
         val visionRange = getGunStats(weapon.type).bulletRange
@@ -185,6 +197,7 @@ class Enemy(
             GunType.Gun -> BulletType.Gun
             GunType.Machine -> BulletType.Machine
             GunType.Silencer -> BulletType.Silencer
+            GunType.Sword, GunType.Bomb, GunType.Shield, GunType.Trap -> BulletType.Gun // placeholder for non-ranged
         }
         val bulletStart = getGunTipPosition()
         val angleRad = sprite.rotation * MathUtils.degreesToRadians
@@ -208,6 +221,7 @@ class Enemy(
             GunType.Gun -> AudioManager.playSound("sounds/submachine-gun-79846.mp3",0.25f)
             GunType.Machine -> AudioManager.playSound("sounds/machine-gun-129928.mp3",0.25f)
             GunType.Silencer -> {AudioManager.playSound("sounds/gun-shot-359196.mp3",0.25f)}
+            GunType.Sword, GunType.Bomb, GunType.Shield, GunType.Trap -> { /* no shooting sound */ }
         }
     }
 

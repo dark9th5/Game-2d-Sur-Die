@@ -8,20 +8,33 @@ import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.example.mygame1.data.ScoreManager
 
 class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
 
     init {
-        contentTable.defaults().pad(24f)
+        isModal = false
+        isMovable = true
+        titleLabel.setFontScale(5f)
+        val closeX = TextButton("X", skin).apply {
+            label.setFontScale(4f)
+            pad(18f)
+            setSize(110f, 110f)
+            addListener(object : ClickListener() {
+                override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) { hide() }
+            })
+        }
+        titleTable.add().expandX().fillX()
+        titleTable.add(closeX).right().padRight(16f).size(110f, 110f)
 
+        contentTable.defaults().pad(24f)
         val title = Label("HighScore", skin).apply {
             setFontScale(5f)
             color = Color.GOLD
         }
         contentTable.add(title).row()
 
-        // Lấy lịch sử điểm và sắp xếp giảm dần
         val scores = ScoreManager.getScoreHistory().sortedDescending()
         if (scores.isEmpty()) {
             val empty = Label("No Data", skin).apply { setFontScale(2f) }
@@ -37,24 +50,19 @@ class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
                 listTable.add(line).left().pad(6f).row()
             }
             val scroll = ScrollPane(listTable, skin)
-            contentTable.add(scroll).width(600f).height(400f).padTop(10f).row()
+            contentTable.add(scroll).grow().minWidth(400f).minHeight(300f).padTop(10f).row()
         }
-
-        val closeBtn = TextButton("Close", skin).apply { label.setFontScale(4f) }
-        button(closeBtn, true)
         pack()
     }
 
     override fun show(stage: Stage?): Dialog {
         val d = super.show(stage)
         stage?.let {
-            val w = it.viewport.worldWidth * 0.6f
-            val h = it.viewport.worldHeight * 0.6f
+            val w = it.viewport.worldWidth * 0.62f
+            val h = it.viewport.worldHeight * 0.62f
             setSize(w, h)
-            setPosition(
-                (it.viewport.worldWidth - w) / 2f,
-                (it.viewport.worldHeight - h) / 2f
-            )
+            setPosition((it.viewport.worldWidth - w)/2f, (it.viewport.worldHeight - h)/2f)
+            invalidateHierarchy(); layout(); toFront()
         }
         return d
     }
