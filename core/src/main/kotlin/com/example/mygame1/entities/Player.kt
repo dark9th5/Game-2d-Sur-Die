@@ -39,8 +39,8 @@ class Player(
     var position = Vector2(120f, 120f)
 
     // ---------------- Stats ----------------
-    var health: Int = 500
-    val maxHealth: Int = 500
+    var health: Int = 1000
+    val maxHealth: Int = 1000
     var speed = 200f
 
     // ---------------- Ammo ----------------
@@ -253,7 +253,7 @@ class Player(
                 damage = stats.damage
             )
         )
-        bombCooldown = 10f
+        bombCooldown = 5f
         AudioManager.playSound("sounds/bomb.mp3", 0.4f)
     }
 

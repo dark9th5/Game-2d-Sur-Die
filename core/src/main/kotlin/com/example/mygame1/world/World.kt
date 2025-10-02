@@ -427,25 +427,30 @@ class World(
         for (enemy in deadEnemies) {
             trySpawnItem(enemy.position)
             score += 10
-            respawnQueue.add(RespawnEntry(5f))
+            // respawnQueue.add(RespawnEntry(5f)) // Remove respawn logic
+        }
+        if (deadEnemies.isNotEmpty()) {
+            enemyKilledThisFrame = true
         }
         enemies.removeAll { it.isDead() }
 
-        // Xử lý respawn sau 5 giây
-        if (respawnQueue.isNotEmpty()) {
-            val iterator = respawnQueue.iterator()
-            while (iterator.hasNext()) {
-                val entry = iterator.next()
-                entry.timeLeft -= delta
-                if (entry.timeLeft <= 0f) {
-                    val spawnPos = getValidSpawnPosition()
-                    val newEnemy = Enemy(spawnPosition = spawnPos)
-                    newEnemy.setCollisionManager(collisionManager)
-                    enemies.add(newEnemy)
-                    iterator.remove()
-                }
-            }
+        // Check if all enemies are dead
+        if (enemies.isEmpty()) {
+            allEnemiesDead = true // Add a flag to indicate all enemies are dead
         }
+
+        // Remove respawn logic
+        // if (respawnQueue.isNotEmpty()) {
+        //     val iterator = respawnQueue.iterator()
+        //     while (iterator.hasNext()) {
+        //         val entry = iterator.next()
+        //         entry.timeLeft -= delta
+        //         if (entry.timeLeft <= 0f) {
+        //             val spawnPos = getValidSpawnPosition()
+        //             // ...existing code...
+        //         }
+        //     }
+        // }
 
         // Cập nhật hiệu ứng chém
         slashEffects.forEach { it.elapsed += delta }
@@ -633,4 +638,9 @@ class World(
                 y + height >= getMapHeight() - padding
             )
     }
+
+    var allEnemiesDead: Boolean = false
+
+    // Đặt ở đầu class, cùng với các biến public khác
+    var enemyKilledThisFrame: Boolean = false
 }

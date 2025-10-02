@@ -303,6 +303,7 @@ class GameScreen(private val game: Main) : KtxScreen {
 
     private var lastSpecialMode: com.example.mygame1.entities.Player.SpecialMode? = null
 
+    @Suppress("DefaultLocale")
     override fun render(delta: Float) {
         clearScreen(0.06f, 0.06f, 0.1f)
 
@@ -361,6 +362,13 @@ class GameScreen(private val game: Main) : KtxScreen {
             if (world.player.isDead()) {
                 com.example.mygame1.data.ScoreManager.addScore(world.score)
                 game.setScreen<GameOverScreen>()
+                return
+            }
+            // Nếu vừa giết 1 địch thì win luôn
+            if (world.enemyKilledThisFrame) {
+                com.example.mygame1.data.ScoreManager.addScore(world.score)
+                game.setScreen<GameWinnerScreen>()
+                world.enemyKilledThisFrame = false // reset flag để tránh chuyển nhiều lần
                 return
             }
         }

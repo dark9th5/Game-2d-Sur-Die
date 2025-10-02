@@ -10,7 +10,7 @@ class Bomb(
     val position: Vector2,
     private val fuseTime: Float = 5f,
     val explosionRadius: Float = 100f,
-    val damage: Int = 50
+    val damage: Int = 100
 ) {
     private var timer = 0f
     var exploded = false

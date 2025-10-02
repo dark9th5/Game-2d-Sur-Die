@@ -9,6 +9,7 @@ import com.example.mygame1.screen.SplashScreen
 import ktx.app.KtxGame
 import ktx.app.KtxScreen
 import com.example.mygame1.screen.GameScreen
+import com.example.mygame1.screen.GameWinnerScreen
 
 class Main : KtxGame<KtxScreen>() {
     val batch by lazy { SpriteBatch() }
@@ -19,6 +20,7 @@ class Main : KtxGame<KtxScreen>() {
         addScreen(SplashScreen(this))
         addScreen(MainMenuScreen(this))
         addScreen(GameOverScreen(this))
+        addScreen(GameWinnerScreen(this))
         setScreen<SplashScreen>()
         addScreen(PauseMenuScreen(this))
     }

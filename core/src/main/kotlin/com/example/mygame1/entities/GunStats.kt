@@ -34,7 +34,7 @@ fun getGunStats(type: GunType): GunStats = when(type) {
     )
     GunType.Bomb -> GunStats(
         fireRate = 0.066f, // 1/15s chỉ để tránh chia 0
-        damage = 50,
+        damage = 100,
         bulletSize = 0f,
         bulletRange = 150f // bán kính nổ
     )

@@ -7,7 +7,6 @@ import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
-import com.badlogic.gdx.utils.Scaling
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import com.example.mygame1.Main
 import com.example.mygame1.audio.AudioManager
@@ -18,7 +17,7 @@ import ktx.app.KtxScreen
 import ktx.app.clearScreen
 import ktx.assets.disposeSafely
 
-class GameOverScreen(private val game: Main) : KtxScreen {
+class GameWinnerScreen(private val game: Main) : KtxScreen {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
 
@@ -27,7 +26,6 @@ class GameOverScreen(private val game: Main) : KtxScreen {
     private lateinit var listButton: ImageButton
     private var gearTexture: Texture? = null
     private var listTexture: Texture? = null
-    private val iconSize = 128f
 
     private var settingsDialog: com.example.mygame1.ui.SettingsDialog? = null
     private var scoreboardDialog: com.example.mygame1.ui.ScoreboardDialog? = null
@@ -80,7 +78,8 @@ class GameOverScreen(private val game: Main) : KtxScreen {
     }
 
     override fun show() {
-        AudioManager.playMusic("sounds/gameover.mp3", looping = false)
+        AudioManager.stopMusic()
+        // AudioManager.playMusic("sounds/win.mp3", looping = false) // Nếu có nhạc win
 
         stage = Stage(ScreenViewport())
         skin = Skin(Gdx.files.internal("ui/uiskin.json"))
@@ -89,7 +88,7 @@ class GameOverScreen(private val game: Main) : KtxScreen {
 
         val table = Table().apply { setFillParent(true) }
 
-        val title = Label("Game Over", skin).apply { setFontScale(5f) }
+        val title = Label("You Win!", skin).apply { setFontScale(5f) }
         table.add(title).padBottom(30f).row()
 
         // Hiển thị điểm và thời gian ván vừa xong
@@ -135,12 +134,12 @@ class GameOverScreen(private val game: Main) : KtxScreen {
         val scale = uiScale()
         gearTexture = Texture(Gdx.files.internal("ui/gear.png")).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
         val gearDrawable = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(gearTexture)).apply {
-            setMinSize(iconSize * scale, iconSize * scale)
+            setMinSize(128f * scale, 128f * scale)
         }
         settingsButton = ImageButton(gearDrawable).apply {
-            setSize(iconSize * scale, iconSize * scale)
-            image.setScaling(Scaling.stretch)
-            imageCell.size(iconSize * scale, iconSize * scale)
+            setSize(128f * scale, 128f * scale)
+            image.setScaling(com.badlogic.gdx.utils.Scaling.stretch)
+            imageCell.size(128f * scale, 128f * scale)
             pad(0f)
         }
         stage.addActor(settingsButton)
@@ -149,9 +148,9 @@ class GameOverScreen(private val game: Main) : KtxScreen {
         listTexture = Texture(Gdx.files.internal("icons/list.png")).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
         val listDrawable = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(listTexture))
         listButton = ImageButton(listDrawable).apply {
-            setSize(iconSize * scale, iconSize * scale)
-            image.setScaling(Scaling.stretch)
-            imageCell.size(iconSize * scale, iconSize * scale)
+            setSize(128f * scale, 128f * scale)
+            image.setScaling(com.badlogic.gdx.utils.Scaling.stretch)
+            imageCell.size(128f * scale, 128f * scale)
             pad(0f)
         }
         stage.addActor(listButton)
@@ -161,7 +160,7 @@ class GameOverScreen(private val game: Main) : KtxScreen {
     }
 
     override fun render(delta: Float) {
-        clearScreen(0.3f, 0f, 0f)
+        clearScreen(0f, 0f, 0f, 1f)
         stage.act(delta)
         stage.draw()
     }
@@ -173,8 +172,7 @@ class GameOverScreen(private val game: Main) : KtxScreen {
 
     override fun dispose() {
         stage.disposeSafely()
-        skin.disposeSafely()
-        gearTexture.disposeSafely()
-        listTexture.disposeSafely()
+        gearTexture?.disposeSafely()
+        listTexture?.disposeSafely()
     }
 }

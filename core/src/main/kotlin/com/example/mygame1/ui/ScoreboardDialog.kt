@@ -11,7 +11,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.example.mygame1.data.ScoreManager
 
-class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
+class ScoreboardDialog(private val skin: Skin) : Dialog("Rank Score", skin) {
 
     init {
         isModal = false
@@ -29,28 +29,31 @@ class ScoreboardDialog(private val skin: Skin) : Dialog("HighScore", skin) {
         titleTable.add(closeX).right().padRight(16f).size(110f, 110f)
 
         contentTable.defaults().pad(24f)
-        val title = Label("HighScore", skin).apply {
+        val title = Label("Rank Score", skin).apply {
             setFontScale(5f)
             color = Color.GOLD
         }
         contentTable.add(title).row()
 
-        val scores = ScoreManager.getScoreHistory().sortedDescending()
-        if (scores.isEmpty()) {
+        val topScores = ScoreManager.getTopScoresWithTime(6)
+        val sdf = java.text.SimpleDateFormat("HH:mm dd/MM/yyyy", java.util.Locale.getDefault())
+        if (topScores.isEmpty()) {
             val empty = Label("No Data", skin).apply { setFontScale(2f) }
             contentTable.add(empty).padTop(20f).row()
         } else {
             val listTable = Table(skin)
-            for ((index, sc) in scores.withIndex()) {
+            for ((index, pair) in topScores.withIndex()) {
+                val (score, time) = pair
                 val rank = index + 1
-                val line = Label("Rank.$rank : $sc PTS", skin).apply {
+                val timeStr = if (time > 0L) sdf.format(java.util.Date(time)) else "--"
+                val line = Label("#${rank}: $score   $timeStr", skin).apply {
                     setFontScale(3f)
                     color = Color.WHITE
                 }
                 listTable.add(line).left().pad(6f).row()
             }
             val scroll = ScrollPane(listTable, skin)
-            contentTable.add(scroll).grow().minWidth(400f).minHeight(300f).padTop(10f).row()
+            contentTable.add(scroll).width(700f).height(600f).row()
         }
         pack()
     }
