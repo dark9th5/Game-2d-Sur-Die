@@ -149,11 +149,11 @@ class Player(
             com.example.mygame1.world.Bomb(
                 position = Vector2(cx, cy),
                 explosionRadius = stats.bulletRange,
-                damage = stats.damage
+                damage = stats.damage * 2 // tăng gấp đôi sát thương bomb cho nhân vật
             )
         )
-        bombCooldown = 5f
-        AudioManager.playSound("sounds/bomb.mp3", 0.4f)
+        bombCooldown = 15f
+        // Đã xóa AudioManager.playSound("sounds/bomb.mp3", 0.4f) - âm thanh sẽ phát khi bomb nổ
     }
 
     fun canPlaceTrap(): Boolean = specialMode == SpecialMode.TRAP && trapCooldown <= 0f
@@ -367,7 +367,7 @@ class Player(
                 direction = direction,
                 maxDistance = stats.bulletRange,
                 size = stats.bulletSize,
-                damage = stats.damage
+                damage = stats.damage * 2 // tăng gấp đôi sát thương súng cho nhân vật
             )
         )
         weapon.ammoInMagazine--
@@ -384,8 +384,8 @@ class Player(
 
         when (weapon.type) {
             GunType.Gun -> AudioManager.playSound("sounds/submachine-gun-79846.mp3", 0.25f)
-            GunType.Machine -> AudioManager.playSound("sounds/machine-gun-129928.mp3", 0.25f)
-            GunType.Silencer -> AudioManager.playSound("sounds/gun-shot-359196.mp3", 0.25f)
+            GunType.Machine -> AudioManager.playSound("sounds/gun-shot-359196.mp3", 0.25f)
+            GunType.Silencer -> { /* no sound */ }
             GunType.Bomb, GunType.Shield, GunType.Trap -> { /* no sound */ }
         }
     }

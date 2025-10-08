@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Vector2
 import com.example.mygame1.Assets
+import com.example.mygame1.audio.AudioManager
 import ktx.assets.disposeSafely
 
 class Bomb(
@@ -67,6 +68,9 @@ class Bomb(
 
     private fun explode(world: World) {
         exploded = true
+        // Phát âm thanh nổ khi bomb thực sự nổ
+        AudioManager.playSound("sounds/bomb.mp3", 0.4f)
+
         // Damage player & enemies with line-of-sight
         val bombCenter = position
         // Player

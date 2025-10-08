@@ -12,15 +12,16 @@ import ktx.graphics.use
 
 class SplashScreen(private val game: Main) : KtxScreen {
 
-    private var elapsed = 0f
+    private var elapsed = 0f// Thời gian đã trôi qua
     private val logo = Texture("logo/Logo1.png")
     private val background = Texture(Gdx.files.internal("background/splash_bg.png"))
 
-    // Font chữ to hơn
+    // Tăng kích thước font chữ tiêu đề
     private val font = BitmapFont().apply {
         data.setScale(3f) // tăng scale từ 2f -> 3f
         color = Color.WHITE
     }
+    // Sử dụng GlyphLayout để đo kích thước chữ
     private val layout = GlyphLayout()
 
     private val screenRatio = Gdx.graphics.width.toFloat() / Gdx.graphics.height

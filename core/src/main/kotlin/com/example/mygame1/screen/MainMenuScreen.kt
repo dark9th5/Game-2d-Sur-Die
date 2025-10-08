@@ -24,12 +24,13 @@ import com.example.mygame1.data.Difficulty
 
 class MainMenuScreen(private val game: Main) : KtxScreen {
 
-    private val viewport = ScreenViewport()
-    private val stage = Stage(viewport)
-    // Replace lazy skin with direct initialization to avoid null on Android click timing
-    private val skin: Skin = Skin(Gdx.files.internal("ui/uiskin.json"))
-    private val starField = StarField(100, sizeScale = 1f)
-    private val batch = SpriteBatch()
+    // thành phần UI
+        private val viewport = ScreenViewport()
+
+        private val stage = Stage(viewport)
+        private val skin: Skin = Skin(Gdx.files.internal("ui/uiskin.json"))
+        private val starField = StarField(100, sizeScale = 1f)
+        private val batch = SpriteBatch()
 
     private var selectedCharacterIndex: Int = game.selectedCharacterIndex
     private var characterSprite: Sprite? = null

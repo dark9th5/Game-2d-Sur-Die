@@ -20,7 +20,7 @@ class Main : KtxGame<KtxScreen>() {
 
     override fun create() {
         // Preload assets (textures) to avoid black squares / disposal issues
-        com.example.mygame1.Assets.init()
+        Assets.init()
         addScreen(SplashScreen(this))
         addScreen(MainMenuScreen(this))
         addScreen(GameOverScreen(this))
@@ -32,6 +32,6 @@ class Main : KtxGame<KtxScreen>() {
     override fun dispose() {
         super.dispose()
         AudioManager.dispose()
-        com.example.mygame1.Assets.dispose()
+        Assets.dispose()
     }
 }
