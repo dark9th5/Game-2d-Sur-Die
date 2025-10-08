@@ -6,43 +6,62 @@ import com.badlogic.gdx.Preferences
 object ScoreManager {
     private val prefs: Preferences = Gdx.app.getPreferences("MyGameScores")
 
-    fun addScore(score: Int) {
-        // Lưu điểm cuối
-        prefs.putInteger("lastScore", score)
-        val now = System.currentTimeMillis()
-        prefs.putLong("lastScoreTime", now)
+    // Lưu lại chế độ cuối cùng đã ghi điểm
+    private const val LAST_DIFFICULTY_KEY = "lastDifficulty"
 
-        // Cập nhật high score
-        val currentHigh = prefs.getInteger("highScore", 0)
+    // API mới: lưu điểm kèm chế độ chơi
+    fun addScore(score: Int, difficulty: Difficulty) {
+        val diffKey = difficulty.name
+        prefs.putString(LAST_DIFFICULTY_KEY, diffKey)
+
+        // Lưu điểm cuối của chế độ
+        prefs.putInteger("lastScore_$diffKey", score)
+        val now = System.currentTimeMillis()
+        prefs.putLong("lastScoreTime_$diffKey", now)
+
+        // High score riêng từng chế độ
+        val currentHigh = prefs.getInteger("highScore_$diffKey", 0)
         if (score > currentHigh) {
-            prefs.putInteger("highScore", score)
-            prefs.putLong("highScoreTime", now)
+            prefs.putInteger("highScore_$diffKey", score)
+            prefs.putLong("highScoreTime_$diffKey", now)
         }
 
-        // Cập nhật lịch sử (giữ tối đa 100 bản ghi), mỗi bản ghi: score|timestamp
-        val csv = prefs.getString("scoreHistory", "")
+        // Lịch sử riêng: giữ tối đa 100 bản ghi. Mỗi bản ghi score|timestamp
+        val historyKey = "scoreHistory_$diffKey"
+        val csv = prefs.getString(historyKey, "")
         val history = if (csv.isBlank()) mutableListOf<String>() else csv
             .split(",")
             .filter { it.contains("|") }
             .toMutableList()
         history.add("$score|$now")
-        if (history.size > 100) {
-            history.removeAt(0)
-        }
-        prefs.putString("scoreHistory", history.joinToString(","))
+        if (history.size > 100) history.removeAt(0)
+        prefs.putString(historyKey, history.joinToString(","))
         prefs.flush()
     }
 
-    fun getLastScore(): Int = prefs.getInteger("lastScore", 0)
-    fun getLastScoreTime(): Long = prefs.getLong("lastScoreTime", 0L)
-    fun getHighScore(): Int = prefs.getInteger("highScore", 0)
-    fun getHighScoreTime(): Long = prefs.getLong("highScoreTime", 0L)
+    fun getLastScore(difficulty: Difficulty? = null): Int {
+        val diff = difficulty ?: getLastDifficulty()
+        return prefs.getInteger("lastScore_${diff.name}", 0)
+    }
 
-    /**
-     * Trả về top N điểm cao nhất kèm thời gian (score, timestamp)
-     */
-    fun getTopScoresWithTime(limit: Int = 6): List<Pair<Int, Long>> {
-        val csv = prefs.getString("scoreHistory", "")
+    fun getLastScoreTime(difficulty: Difficulty? = null): Long {
+        val diff = difficulty ?: getLastDifficulty()
+        return prefs.getLong("lastScoreTime_${diff.name}", 0L)
+    }
+
+    fun getHighScore(difficulty: Difficulty? = null): Int {
+        val diff = difficulty ?: getLastDifficulty()
+        return prefs.getInteger("highScore_${diff.name}", 0)
+    }
+
+    fun getHighScoreTime(difficulty: Difficulty? = null): Long {
+        val diff = difficulty ?: getLastDifficulty()
+        return prefs.getLong("highScoreTime_${diff.name}", 0L)
+    }
+
+    fun getTopScoresWithTime(limit: Int = 6, difficulty: Difficulty? = null): List<Pair<Int, Long>> {
+        val diff = difficulty ?: getLastDifficulty()
+        val csv = prefs.getString("scoreHistory_${diff.name}", "")
         if (csv.isBlank()) return emptyList()
         return csv.split(",")
             .mapNotNull {
@@ -56,9 +75,8 @@ object ScoreManager {
             .take(limit)
     }
 
-    fun getScoreHistory(): List<Int> {
-        val csv = prefs.getString("scoreHistory", "")
-        if (csv.isBlank()) return emptyList()
-        return csv.split(",").mapNotNull { it.toIntOrNull() }
+    fun getLastDifficulty(): Difficulty {
+        val stored = prefs.getString(LAST_DIFFICULTY_KEY, Difficulty.EASY.name)
+        return Difficulty.fromString(stored)
     }
 }

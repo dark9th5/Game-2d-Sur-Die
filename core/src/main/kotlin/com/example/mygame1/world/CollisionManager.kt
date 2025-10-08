@@ -1,7 +1,6 @@
 package com.example.mygame1.world
 
 import com.badlogic.gdx.maps.tiled.TiledMap
-import com.badlogic.gdx.maps.tiled.TiledMapTileLayer
 import com.badlogic.gdx.maps.objects.PolygonMapObject
 import com.badlogic.gdx.maps.objects.RectangleMapObject
 import com.badlogic.gdx.maps.objects.EllipseMapObject
@@ -13,7 +12,6 @@ import ktx.tiled.x
 import ktx.tiled.y
 
 class CollisionManager(
-    private val tileLayer: TiledMapTileLayer,
     map: TiledMap
 ) {
     val polygons = mutableListOf<Polygon>()
@@ -62,10 +60,6 @@ class CollisionManager(
 
     // Kiểm tra overlap giữa ellipse và rect (bounding box)
     private fun ellipseOverlapsRect(ellipse: Ellipse, rect: Rectangle): Boolean {
-        // Ellipse: x, y là góc trên trái, width, height là bán kính ngang/dọc * 2
-        // Rect: x, y là góc trên trái, width, height
-        // => Chuyển ellipse về tâm, bán kính, rồi kiểm tra sát mép
-
         val ellipseCenterX = ellipse.x + ellipse.width / 2f
         val ellipseCenterY = ellipse.y + ellipse.height / 2f
         val ellipseRadiusX = ellipse.width / 2f
@@ -96,15 +90,11 @@ class CollisionManager(
         // Kiểm tra polygon & rectangle vật cản
         val rectPoly = rect.toPolygon()
         for (poly in polygons) {
-            if (Intersector.overlapConvexPolygons(rectPoly, poly)) {
-                return true
-            }
+            if (Intersector.overlapConvexPolygons(rectPoly, poly)) return true
         }
         // Kiểm tra ellipse vật cản
         for (ellipse in ellipses) {
-            if (ellipseOverlapsRect(ellipse, rect)) {
-                return true
-            }
+            if (ellipseOverlapsRect(ellipse, rect)) return true
         }
         return false
     }
@@ -115,14 +105,10 @@ class CollisionManager(
 
         val bulletPoly = bulletRect.toPolygon()
         for (poly in polygons) {
-            if (Intersector.overlapConvexPolygons(bulletPoly, poly)) {
-                return true
-            }
+            if (Intersector.overlapConvexPolygons(bulletPoly, poly)) return true
         }
         for (ellipse in ellipses) {
-            if (ellipseOverlapsRect(ellipse, bulletRect)) {
-                return true
-            }
+            if (ellipseOverlapsRect(ellipse, bulletRect)) return true
         }
         return false
     }

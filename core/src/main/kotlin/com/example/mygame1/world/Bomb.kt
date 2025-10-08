@@ -4,6 +4,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Vector2
+import com.example.mygame1.Assets
 import ktx.assets.disposeSafely
 
 class Bomb(
@@ -17,7 +18,7 @@ class Bomb(
         private set
     private var finished = false
 
-    private val texture = Texture("character/Weapons/weapon_bomb.png") // placeholder icon
+    private val texture = Assets.texture("character/Weapons/weapon_bomb.png") // placeholder icon
     private val displayScale = 0.5f
 
     private val explosionDuration = 0.3f
@@ -120,5 +121,5 @@ class Bomb(
 
     fun isFinished(): Boolean = finished
 
-    fun dispose() { texture.disposeSafely(); if (explosionTexture != texture) explosionTexture.disposeSafely() }
+    fun dispose() { if (explosionTexture != texture) explosionTexture.disposeSafely() }
 }

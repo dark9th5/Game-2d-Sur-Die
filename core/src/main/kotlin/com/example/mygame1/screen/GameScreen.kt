@@ -22,19 +22,20 @@ import com.example.mygame1.Main
 import com.example.mygame1.audio.AudioManager
 import com.example.mygame1.ui.AttackPad
 import com.example.mygame1.ui.Joystick
-import com.example.mygame1.world.World
 import ktx.app.KtxScreen
 import ktx.app.clearScreen
 import ktx.assets.disposeSafely
+import com.example.mygame1.data.ScoreManager
+import com.example.mygame1.Assets
 
 class GameScreen(private val game: Main) : KtxScreen {
     private val batch = SpriteBatch()
-    // Dùng ScreenViewport để tận dụng full màn hình thiết bị
     private val viewport = ScreenViewport()
     private val stage = Stage(viewport)
     private val skin = Skin(Gdx.files.internal("ui/uiskin.json"))
 
-    val world = World(stage, skin, game.selectedCharacterIndex, game.selectedWeaponIndex)
+    // Truy cập World bằng tên đầy đủ để tránh lỗi import
+    val world = com.example.mygame1.world.World(stage, skin, game.selectedCharacterIndex, game.selectedWeaponIndex, game.selectedDifficulty)
 
     private val touchpad = Joystick.create(stage)
     private var paused = false
@@ -51,23 +52,16 @@ class GameScreen(private val game: Main) : KtxScreen {
         onAttackRelease = {}
     )
 
-    private val blankTexture: Texture by lazy {
-        val pixmap = com.badlogic.gdx.graphics.Pixmap(1, 1, com.badlogic.gdx.graphics.Pixmap.Format.RGBA8888)
-        pixmap.setColor(Color.WHITE)
-        pixmap.fill()
-        Texture(pixmap, false)
-    }
+    private val blankTexture: Texture by lazy { Assets.white() }
     private val font: BitmapFont = BitmapFont()
 
     private lateinit var settingsButton: ImageButton
     private var gearTexture: Texture? = null
     private val baseSettingsButtonSize = 128f
 
-    private lateinit var swordButton: ImageButton
     private lateinit var bombButton: ImageButton
     private lateinit var shieldButton: ImageButton
     private lateinit var trapButton: ImageButton
-    private var swordTexture: Texture? = null
     private var bombTexture: Texture? = null
     private var shieldTexture: Texture? = null
     private var trapTexture: Texture? = null
@@ -96,7 +90,6 @@ class GameScreen(private val game: Main) : KtxScreen {
         if (!::settingsButton.isInitialized) return
         val gap = 20f * uiScale()
         val buttons = mutableListOf<ImageButton>()
-        if (::swordButton.isInitialized) buttons.add(swordButton)
         if (::bombButton.isInitialized) buttons.add(bombButton)
         if (::shieldButton.isInitialized) buttons.add(shieldButton)
         if (::trapButton.isInitialized) buttons.add(trapButton)
@@ -150,7 +143,7 @@ class GameScreen(private val game: Main) : KtxScreen {
         val scale = uiScale()
 
         // SETTINGS FIRST
-        gearTexture = Texture(Gdx.files.internal("ui/gear.png")).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+        gearTexture = Assets.texture("ui/gear.png")
         val gearDrawable = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(gearTexture)).apply {
             setMinSize(baseSettingsButtonSize * scale, baseSettingsButtonSize * scale)
         }
@@ -164,13 +157,23 @@ class GameScreen(private val game: Main) : KtxScreen {
         settingsButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 paused = true
-                com.example.mygame1.ui.SettingsDialog(skin) { paused = false }.show(stage)
+                com.example.mygame1.ui.SettingsDialog(
+                    skin,
+                    onClose = { if (!world.player.isDead()) paused = false },
+                    inGame = true,
+                    onBackHome = {
+                        // Hủy trận hiện tại, không lưu score (vì chưa đi qua logic chết/thắng)
+                        val old = game.removeScreen<GameScreen>()
+                        old?.dispose()
+                        game.setScreen<MainMenuScreen>()
+                    }
+                ).show(stage)
             }
         })
 
         // CENTER ACTION BUTTON
         if (!::centerActionButton.isInitialized) {
-            centerActionTexture = Texture(Gdx.files.internal("ui/gear.png")) // placeholder
+            centerActionTexture = Assets.texture("ui/gear.png") // placeholder
             val centerDrawable = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(centerActionTexture))
             centerActionButton = ImageButton(centerDrawable).apply { isVisible = false; pad(0f) }
             stage.addActor(centerActionButton)
@@ -178,7 +181,6 @@ class GameScreen(private val game: Main) : KtxScreen {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
                     val p = world.player
                     when (p.specialMode) {
-                        com.example.mygame1.entities.Player.SpecialMode.SWORD -> p.swordAttack(world)
                         com.example.mygame1.entities.Player.SpecialMode.BOMB -> p.placeBomb(world)
                         com.example.mygame1.entities.Player.SpecialMode.TRAP -> p.placeTrap(world)
                         else -> {}
@@ -187,21 +189,7 @@ class GameScreen(private val game: Main) : KtxScreen {
             })
         }
 
-        // SPECIAL BUTTONS (Sword, Bomb, Shield, Trap)
-        swordTexture = loadWeaponTextureSafe("character/Weapons/weapon_sword.png")
-        val swordDrawable = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(swordTexture))
-        swordButton = ImageButton(swordDrawable).apply {
-            val sz = baseSettingsButtonSize * 0.8f * scale; setSize(sz, sz); image.setScaling(Scaling.stretch); pad(0f)
-        }
-        stage.addActor(swordButton)
-        swordButton.addListener(object: ClickListener(){
-            override fun clicked(event: InputEvent?, x: Float, y: Float) {
-                val p = world.player
-                p.setSpecialMode(if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SWORD) com.example.mygame1.entities.Player.SpecialMode.NONE else com.example.mygame1.entities.Player.SpecialMode.SWORD)
-                updateWeaponButtonsColor(); onSpecialModeChanged()
-            }
-        })
-
+        // SPECIAL BUTTONS (Bomb, Shield, Trap)
         bombTexture = loadWeaponTextureSafe("character/Weapons/weapon_bomb.png")
         val bombDrawable = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(bombTexture))
         bombButton = ImageButton(bombDrawable).apply {
@@ -256,14 +244,12 @@ class GameScreen(private val game: Main) : KtxScreen {
     }
 
     private fun loadWeaponTextureSafe(path: String): Texture {
-        return if (Gdx.files.internal(path).exists()) Texture(Gdx.files.internal(path)).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
-        else Texture(Gdx.files.internal("ui/gear.png")).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+        return Assets.texture(if (Gdx.files.internal(path).exists()) path else "ui/gear.png").also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
     }
 
     private fun onSpecialModeChanged() {
         val p = world.player
         val actionTexPath = when (p.specialMode) {
-            com.example.mygame1.entities.Player.SpecialMode.SWORD -> "character/Weapons/weapon_sword.png"
             com.example.mygame1.entities.Player.SpecialMode.BOMB -> "character/Weapons/weapon_bomb.png"
             com.example.mygame1.entities.Player.SpecialMode.TRAP -> "control/icon_crosshair.png"
             else -> null
@@ -272,36 +258,33 @@ class GameScreen(private val game: Main) : KtxScreen {
             centerActionButton.isVisible = false
             attackPad.touchable = Touchable.enabled
         } else {
-            centerActionTexture?.disposeSafely()
-            centerActionTexture = loadWeaponTextureSafe(actionTexPath)
+            // Đừng dispose texture cũ vì dùng chung từ Assets.cache -> tránh bị ô vuông đen
+            centerActionTexture = Assets.texture(actionTexPath)
             val style = centerActionButton.style as ImageButton.ImageButtonStyle
             style.imageUp = TextureRegionDrawable(com.badlogic.gdx.graphics.g2d.TextureRegion(centerActionTexture))
             centerActionButton.isVisible = true
-            // For sword we disable joystick; for bomb/trap also disable to avoid accidental shooting
             attackPad.touchable = Touchable.disabled
             layoutUI()
         }
         val selectedScale = 1.2f
-        swordButton.setTransform(true)
         bombButton.setTransform(true)
         shieldButton.setTransform(true)
         trapButton.setTransform(true)
-        swordButton.setScale(if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SWORD) selectedScale else 1f)
         bombButton.setScale(if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.BOMB) selectedScale else 1f)
         shieldButton.setScale(if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SHIELD) selectedScale else 1f)
         trapButton.setScale(if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.TRAP) selectedScale else 1f)
     }
 
     private fun updateWeaponButtonsColor() {
-        if (!::swordButton.isInitialized) return
+        if (!::bombButton.isInitialized) return
         val p = world.player
-        swordButton.color = if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SWORD) Color.YELLOW else Color.WHITE
         bombButton.color = if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.BOMB) Color.YELLOW else Color.WHITE
         shieldButton.color = if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SHIELD) Color.YELLOW else Color.WHITE
         trapButton.color = if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.TRAP) Color.YELLOW else Color.WHITE
     }
 
     private var lastSpecialMode: com.example.mygame1.entities.Player.SpecialMode? = null
+    private var transitionScheduled = false // tránh chuyển màn hình nhiều lần & fix unresolved reference
 
     @Suppress("DefaultLocale")
     override fun render(delta: Float) {
@@ -347,28 +330,47 @@ class GameScreen(private val game: Main) : KtxScreen {
                 if (isPadActive) {
                     val direction = Vector2(knobX, knobY).nor()
                     p.sprite.rotation = direction.angleDeg()
+                    val enemyBullets = world.enemies.flatMap { enemyObj -> enemyObj.bullets }
+                    val prevBulletCount = p.bullets.size
+                    val prevAmmo = p.ammoInMagazine
                     p.attack(
-                        bulletsOnMap = p.bullets + world.enemies.flatMap { it.bullets },
-                        enemyPosition = world.enemies.firstOrNull()?.position ?: Vector2.Zero
+                        enemyPosition = world.enemies.firstOrNull()?.position ?: Vector2.Zero,
+                        bulletsOnMap = p.bullets + enemyBullets
                     )
+                    if (p.bullets.size > prevBulletCount || p.ammoInMagazine < prevAmmo) {
+                        val nearestEnemy = world.enemies.minByOrNull { it.position.dst(p.position) }?.position
+                        world.behaviorTracker.onPlayerShot(p.position.cpy(), nearestEnemy?.cpy())
+                    }
                 }
-            } else if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SWORD) {
+            } else if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.BOMB) {
                 if (isPadActive) {
                     val direction = Vector2(knobX, knobY).nor()
                     p.sprite.rotation = direction.angleDeg()
-                    p.swordAttack(world)
+                    p.placeBomb(world)
+                }
+            } else if (p.specialMode == com.example.mygame1.entities.Player.SpecialMode.SHIELD) {
+                // Cho phép dùng attack pad để xoay hướng khiên (không bắn)
+                if (isPadActive) {
+                    val direction = Vector2(knobX, knobY).nor()
+                    p.sprite.rotation = direction.angleDeg()
                 }
             }
             if (world.player.isDead()) {
-                com.example.mygame1.data.ScoreManager.addScore(world.score)
-                game.setScreen<GameOverScreen>()
-                return
-            }
-            // Nếu vừa giết 1 địch thì win luôn
-            if (world.enemyKilledThisFrame) {
-                com.example.mygame1.data.ScoreManager.addScore(world.score)
-                game.setScreen<GameWinnerScreen>()
-                world.enemyKilledThisFrame = false // reset flag để tránh chuyển nhiều lần
+                if (!transitionScheduled) {
+                    transitionScheduled = true
+                    val win = world.score > 0
+                    val finalScore = world.score
+                    // Lưu hành vi trận này vào history
+                    world.behaviorTracker.finalizeAndPersist(
+                        score = finalScore,
+                        difficulty = game.selectedDifficulty.displayName,
+                        win = win
+                    )
+                    ScoreManager.addScore(finalScore, game.selectedDifficulty)
+                    Gdx.app.postRunnable {
+                        if (win) game.setScreen<GameWinnerScreen>() else game.setScreen<GameOverScreen>()
+                    }
+                }
                 return
             }
         }
@@ -378,7 +380,7 @@ class GameScreen(private val game: Main) : KtxScreen {
         }
 
         batch.projectionMatrix = world.camera.combined
-        batch.begin(); world.render(batch, font, blankTexture); batch.end()
+        batch.begin(); world.render(batch, font); batch.end()
 
         batch.projectionMatrix = stage.camera.combined
         batch.begin()
@@ -401,6 +403,12 @@ class GameScreen(private val game: Main) : KtxScreen {
             if (touchingBorder && !isBorderSoundPlaying) { AudioManager.playMusic("sounds/game_music.mp3"); isBorderSoundPlaying = true }
             else if (!touchingBorder && isBorderSoundPlaying) { AudioManager.stopMusic(); isBorderSoundPlaying = false }
         }
+        // Difficulty label overlay top-left
+        font.data.setScale(2f * uiScale())
+        font.color = Color.CYAN
+        font.draw(batch, "Mode: ${game.selectedDifficulty.displayName}", 20f, viewport.worldHeight - 20f)
+        font.data.setScale(1f)
+        font.color = Color.WHITE
         batch.end()
 
         // Cập nhật nhãn cooldown bom trước khi stage.act()/draw để hiển thị đúng frame
@@ -411,7 +419,6 @@ class GameScreen(private val game: Main) : KtxScreen {
                 if (cd >= 1f) "${cd.toInt()}s" else String.format("%.1fs", cd)
             } else "Ready"
             lbl.setText(text)
-            // Phóng to gấp đôi so với trước (trước 1.6f * scale)
             lbl.setFontScale(3.2f * scale)
             lbl.color = if (cd > 0f) Color(1f,0.55f,0.55f,1f) else Color(0.4f,1f,0.4f,1f)
             if (::bombButton.isInitialized) {
@@ -463,6 +470,6 @@ class GameScreen(private val game: Main) : KtxScreen {
     }
 
     override fun dispose() {
-        batch.disposeSafely(); stage.dispose(); world.dispose(); blankTexture.disposeSafely(); font.disposeSafely(); gearTexture?.dispose(); swordTexture?.dispose(); bombTexture?.dispose(); shieldTexture?.dispose(); trapTexture?.dispose()
+        batch.disposeSafely(); stage.dispose(); world.dispose(); font.disposeSafely(); gearTexture = null; bombTexture = null; shieldTexture = null; trapTexture = null; centerActionTexture = null
     }
 }

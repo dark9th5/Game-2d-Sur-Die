@@ -8,12 +8,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.scenes.scene2d.ui.Image
-import com.badlogic.gdx.scenes.scene2d.ui.ImageButton
-import com.badlogic.gdx.scenes.scene2d.ui.Label
-import com.badlogic.gdx.scenes.scene2d.ui.Skin
-import com.badlogic.gdx.scenes.scene2d.ui.Table
-import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.ui.TextButton.TextButtonStyle
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Scaling
@@ -24,14 +20,14 @@ import com.example.mygame1.entities.GunType
 import com.example.mygame1.entities.characterTextures
 import com.example.mygame1.world.StarField
 import ktx.app.KtxScreen
-import kotlin.random.Random
+import com.example.mygame1.data.Difficulty
 
 class MainMenuScreen(private val game: Main) : KtxScreen {
 
-    // Dùng ScreenViewport để tận dụng tối đa màn hình thiết bị, không ép 1920x1080
     private val viewport = ScreenViewport()
     private val stage = Stage(viewport)
-    private val skin = Skin(Gdx.files.internal("ui/uiskin.json"))
+    // Replace lazy skin with direct initialization to avoid null on Android click timing
+    private val skin: Skin = Skin(Gdx.files.internal("ui/uiskin.json"))
     private val starField = StarField(100, sizeScale = 1f)
     private val batch = SpriteBatch()
 
@@ -42,21 +38,17 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
     private var selectedWeaponIndex: Int = game.selectedWeaponIndex
     private var weaponSprite: Sprite? = null
     private var weaponImage: Image? = null
-    private val weaponTypes = arrayOf(GunType.Gun, GunType.Machine, GunType.Silencer) // chỉ 3 súng cơ bản
+    private val weaponTypes = arrayOf(GunType.Gun, GunType.Machine, GunType.Silencer)
 
-    // Settings button + texture
     private lateinit var settingsButton: ImageButton
     private var gearTexture: Texture? = null
 
-    // List button + texture (bảng điểm)
     private lateinit var listButton: ImageButton
     private var listTexture: Texture? = null
 
-    // Kích thước icon settings/list 4x (ví dụ 512)
     private val settingsButtonSize = 128f
 
     private fun dynamicScale(): Float {
-        // Tính scale tương đối dựa trên chiều cao để UI không quá to trên màn hình nhỏ
         val baseH = 1080f
         return (stage.viewport.worldHeight / baseH).coerceIn(0.6f, 1.5f)
     }
@@ -87,7 +79,16 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             current.hide()
             settingsDialog = null
         } else {
-            val dlg = com.example.mygame1.ui.SettingsDialog(skin)
+            val dlg = com.example.mygame1.ui.SettingsDialog(skin,
+                onClose = null,
+                inGame = false,
+                onBackHome = null,
+                onMusicToggle = {
+                    if (com.example.mygame1.data.SettingsManager.musicEnabled) {
+                        com.example.mygame1.audio.AudioManager.playMusic("sounds/menu_music.mp3")
+                    }
+                }
+            )
             settingsDialog = dlg
             dlg.show(stage)
         }
@@ -98,13 +99,21 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             current.hide()
             scoreboardDialog = null
         } else {
-            val dlg = com.example.mygame1.ui.ScoreboardDialog(skin)
+            val dlg = com.example.mygame1.ui.ScoreboardDialog(skin, game.selectedDifficulty)
             scoreboardDialog = dlg
             dlg.show(stage)
         }
     }
 
+    // Difficulty buttons container & state
+    private var difficultyTable: Table? = null
+    private var playButton: TextButton? = null
+    private var playContainer: Table? = null
+
     override fun show() {
+        // Reset state so Play always rebuilds difficulty buttons after returning from other screens
+        difficultyTable = null
+        // Removed conditional lazy init; skin is always ready
         Gdx.input.inputProcessor = stage
         AudioManager.playMusic("sounds/menu_music.mp3")
 
@@ -119,7 +128,7 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             color = Color.WHITE
         }
 
-        val playButton = TextButton("Play", skin).apply {
+        playButton = TextButton("Play", skin).apply {
             label.setFontScale(5f * scale)
             label.color = Color.WHITE
         }
@@ -148,7 +157,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         val panelSize = 100f * scale
         characterImage = Image().apply { isVisible = false }
 
-        // --- Weapon UI ---
         val weaponButton = TextButton("Weapon", skin).apply {
             label.setFontScale(5f * scale)
             label.color = Color.WHITE
@@ -168,7 +176,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             height = arrowButtonSize
         }
         weaponImage = Image().apply { isVisible = false }
-        // --- End Weapon UI ---
 
         characterButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
@@ -194,31 +201,57 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         weaponLeftButton.addListener(object : ClickListener() { override fun clicked(e: InputEvent?, x: Float, y: Float) { selectedWeaponIndex = (selectedWeaponIndex - 1 + weaponTypes.size) % weaponTypes.size; updateWeaponSprite(panelSize, panelSize) } })
         weaponRightButton.addListener(object : ClickListener() { override fun clicked(e: InputEvent?, x: Float, y: Float) { selectedWeaponIndex = (selectedWeaponIndex + 1) % weaponTypes.size; updateWeaponSprite(panelSize, panelSize) } })
 
-        playButton.addListener(object : ClickListener() {
+        fun startGameWithDifficulty(diff: Difficulty) {
+            if (selectedCharacterIndex !in characterTextures.indices) selectedCharacterIndex = 0
+            if (selectedWeaponIndex !in weaponTypes.indices) selectedWeaponIndex = 0
+            game.selectedCharacterIndex = selectedCharacterIndex
+            game.selectedWeaponIndex = selectedWeaponIndex
+            game.selectedDifficulty = diff
+            AudioManager.stopMusic()
+            val old = game.removeScreen<GameScreen>()
+            old?.dispose()
+            game.addScreen(GameScreen(game))
+            game.setScreen<GameScreen>()
+        }
+
+        playButton?.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
-                // Bảo đảm có lựa chọn hợp lệ
-                if (selectedCharacterIndex !in characterTextures.indices) selectedCharacterIndex = 0
-                if (selectedWeaponIndex !in weaponTypes.indices) selectedWeaponIndex = 0
-                // Lưu vào game
-                game.selectedCharacterIndex = selectedCharacterIndex
-                game.selectedWeaponIndex = selectedWeaponIndex
-
-                // Dừng nhạc menu
-                AudioManager.stopMusic()
-
-                // Loại bỏ & giải phóng GameScreen cũ (nếu có) trước khi tạo mới
-                val old = game.removeScreen<GameScreen>()
-                old?.dispose()
-
-                // Đăng ký và chuyển sang GameScreen mới
-                game.addScreen(GameScreen(game))
-                game.setScreen<GameScreen>()
+                if (difficultyTable == null) {
+                    // Build difficulty buttons using explicit style object to avoid style-name lookup NPE
+                    val baseStyle = runCatching { skin.get(TextButtonStyle::class.java) }.getOrNull()
+                        ?: TextButtonStyle().apply { font = skin.getFont("default"); fontColor = Color.WHITE }
+                    fun makeBtn(text: String, diff: Difficulty): TextButton {
+                        val btn = TextButton(text, baseStyle)
+                        btn.label.setFontScale(3.2f * scale, 3.2f * scale)
+                        btn.addListener(object: ClickListener(){
+                            override fun clicked(e: InputEvent?, x2: Float, y2: Float) { startGameWithDifficulty(diff) }
+                        })
+                        return btn
+                    }
+                    difficultyTable = Table().apply {
+                        defaults().pad(6f * scale)
+                        add(makeBtn("Easy", Difficulty.EASY)).width(200f * scale).height(110f * scale)
+                        add(makeBtn("Normal", Difficulty.NORMAL)).width(200f * scale).height(110f * scale)
+                        // Hard button: starts game directly with Hard difficulty
+                        val hardBtn = makeBtn("Hard", Difficulty.HARD)
+                        hardBtn.clearListeners()
+                        hardBtn.addListener(object: ClickListener(){
+                            override fun clicked(e: InputEvent?, x2: Float, y2: Float) { startGameWithDifficulty(Difficulty.HARD) }
+                        })
+                        add(hardBtn).width(200f * scale).height(110f * scale)
+                    }
+                    playContainer?.clearChildren()
+                    playContainer?.add(difficultyTable)
+                    playContainer?.invalidateHierarchy(); playContainer?.layout()
+                    table.invalidateHierarchy(); table.layout()
+                }
             }
         })
 
-        // Layout
+        playContainer = Table().apply { add(playButton).width(200f * scale).height(panelSize) }
         table.add(title).padBottom(50f * scale).row()
-        table.add(playButton).width(200f * scale).height(panelSize).padBottom(20f * scale).row()
+        table.add(playContainer).padBottom(20f * scale).row()
+
         table.add(characterButton).width(250f * scale).height(panelSize).padBottom(20f * scale).row()
         val characterRow = Table().apply {
             add(leftButton).width(arrowButtonSize).height(arrowButtonSize).padRight(25f * scale)
@@ -237,7 +270,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         table.add(weaponRow).width(250f * scale).height(panelSize).padBottom(10f * scale).row()
         weaponImage?.isVisible = false; weaponLeftButton.isVisible = false; weaponRightButton.isVisible = false
 
-        // Settings icon 4x (512x512), vùng chạm = hình, cách viền 50f
         gearTexture = Texture(Gdx.files.internal("ui/gear.png")).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
         val gearDrawable = TextureRegionDrawable(TextureRegion(gearTexture)).apply { setMinSize(settingsButtonSize * scale, settingsButtonSize * scale) }
         settingsButton = ImageButton(gearDrawable).apply {
@@ -249,7 +281,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         stage.addActor(settingsButton)
         settingsButton.addListener(object : ClickListener() { override fun clicked(event: InputEvent?, x: Float, y: Float) { toggleSettingsDialog() } })
 
-        // List (scoreboard) icon đặt dưới settings
         listTexture = Texture(Gdx.files.internal("icons/list.png")).also { it.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
         val listDrawable = TextureRegionDrawable(TextureRegion(listTexture))
         listButton = ImageButton(listDrawable).apply {
@@ -267,7 +298,6 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
     override fun render(delta: Float) {
         batch.projectionMatrix = stage.camera.combined
         batch.begin()
-        // Use virtual world size for star field so density differences do not explode layout
         starField.update(delta, stage.viewport.worldWidth, stage.viewport.worldHeight)
         starField.render(batch)
         batch.end()
@@ -291,13 +321,11 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
 
     override fun resize(width: Int, height: Int) {
         viewport.update(width, height, true)
-        // Rebuild UI với scale mới để font/kích thước nút điều chỉnh đúng
-        // Giải phóng texture cũ tránh leak
         characterSprite?.texture?.dispose(); characterSprite = null
         weaponSprite?.texture?.dispose(); weaponSprite = null
         gearTexture?.dispose(); gearTexture = null
         listTexture?.dispose(); listTexture = null
-        show() // tạo lại layout theo kích thước mới
+        show()
     }
 
     override fun dispose() {

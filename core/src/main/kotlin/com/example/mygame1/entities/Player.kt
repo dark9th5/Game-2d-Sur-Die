@@ -1,6 +1,7 @@
 package com.example.mygame1.entities
 
 import GameState
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.Sprite
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
@@ -14,6 +15,7 @@ import com.example.mygame1.input.PlayerAction
 import com.example.mygame1.world.World
 import ktx.assets.disposeSafely
 import kotlin.random.Random
+import com.example.mygame1.Assets
 
 // Danh sách texture nhân vật
 val characterTextures: List<String> = listOf(
@@ -32,25 +34,25 @@ class Player(
     characterIndex: Int = 0,
     weaponIndex: Int = -1
 ) {
+    companion object { private const val DEBUG_AMMO = false }
     // ---------------- Character & texture ----------------
     private var currentCharacterIndex: Int = characterIndex.coerceIn(0, characterTextures.size - 1)
-    private var texture: Texture = Texture(characterTextures[currentCharacterIndex])
+    private var texture: Texture = Assets.texture(characterTextures[currentCharacterIndex])
     val sprite: Sprite = Sprite(texture).apply { setOriginCenter() }
     var position = Vector2(120f, 120f)
 
     // ---------------- Stats ----------------
-    var health: Int = 1000
-    val maxHealth: Int = 1000
+    var health: Int = 500
+    val maxHealth: Int = 500
     var speed = 200f
 
-    // ---------------- Ammo ----------------
-    val maxBullets = 20
-    var ammoInMagazine = maxBullets
-    var isReloading = false
-    private var reloadTimer = 0f
-    private var reloadTarget = maxBullets
+    // ---------------- Ammo (moved into Weapon) ----------------
+    // Mỗi vũ khí có ammo riêng trong class Weapon. Các getter dưới đây để giữ tương thích.
     private val reloadTimePerBullet = 0.2f
     private val reloadTimeFull = 4f
+    val ammoInMagazine: Int get() = weapon.ammoInMagazine
+    val maxBullets: Int get() = weapon.maxBullets
+    val isReloading: Boolean get() = weapon.isReloading
 
     // ---------------- Weapons (tầm xa) ----------------
     val weapons: List<Weapon> = listOf(
@@ -76,7 +78,7 @@ class Player(
     val iconArmor: Texture by lazy { Texture("character/Weapons/shield_curved.png") }
 
     // ---------------- Special Modes ----------------
-    enum class SpecialMode { NONE, SWORD, BOMB, SHIELD, TRAP }
+    enum class SpecialMode { NONE, BOMB, SHIELD, TRAP }
     var specialMode: SpecialMode = SpecialMode.NONE
         private set
 
@@ -87,45 +89,20 @@ class Player(
     var trapCooldown = 0f
         private set
 
-    // ---------------- Sword (đâm thẳng) ----------------
-    private var swordTex: Texture? = null
-    private var swordSprite: Sprite? = null
-    private var swordCooldown = 0f
-    private var swordThrusting = false
-    private var swordThrustElapsed = 0f
-    private val swordThrustDuration = 0.20f // tổng thời gian animation đâm
-    private var swordFacingAngle = 0f
-    private var swordMaxReach = 0f
-    private val swordDamageWidth = 40f // “độ rộng” hitbox đường đâm
-    private val swordEnemiesHit = mutableSetOf<Enemy>()
-    private var swordEnemySnapshot: List<Enemy> = emptyList()
-    private var swordLastDamage = 0
-    private var swordHandleX = 0f
-    private var swordHandleY = 0f
-    // Thêm biến trạng thái cho khoảng tiến hiện tại và cấu hình giữ kiếm sát người
-    private var swordCurrentReach = 0f
-    private val swordTravelFactor = 0.55f // % chiều dài sprite dùng để lao ra
-    private val swordHoldDistance = 14f   // khoảng cách chuôi kiếm tính từ tâm nhân vật (sát người)
-
     // ---------------- Bomb hiển thị ----------------
     private var bombTex: Texture? = null
     private var bombSprite: Sprite? = null
+    private var trapTex: Texture? = null
+
+    // ---------------- Movement root (trap) ----------------
+    var rootTimeLeft: Float = 0f
 
     // ---------------- Getters ----------------
-    val characterIndex: Int get() = currentCharacterIndex
     val weaponIndex: Int get() = currentWeaponIndex
 
     // =====================================================
-    // Character selection
+    // Character selection (removed selectCharacter as unused to clean warnings)
     // =====================================================
-    fun selectCharacter(index: Int) {
-        if (index !in characterTextures.indices) return
-        currentCharacterIndex = index
-        texture.disposeSafely()
-        texture = Texture(characterTextures[currentCharacterIndex])
-        sprite.setTexture(texture)
-        sprite.setOriginCenter()
-    }
 
     fun setSpawnLeftMiddle(mapHeight: Float) {
         position.x = 0f
@@ -148,92 +125,14 @@ class Player(
     fun setSpecialMode(mode: SpecialMode) {
         if (mode == specialMode) return
         specialMode = mode
-        if (specialMode == SpecialMode.SWORD) shootCooldown = 0f
     }
 
     // =====================================================
     // Cooldowns & helpers
     // =====================================================
     private fun updateCooldowns(delta: Float) {
-        swordCooldown = (swordCooldown - delta).coerceAtLeast(0f)
         bombCooldown = (bombCooldown - delta).coerceAtLeast(0f)
         trapCooldown = (trapCooldown - delta).coerceAtLeast(0f)
-    }
-
-    private fun ensureSwordSprite() {
-        if (swordSprite != null) return
-        swordTex = swordTex ?: runCatching { Texture(GunType.Sword.assetPath) }.getOrNull()
-        swordTex?.let { tex ->
-            swordSprite = Sprite(tex).apply {
-                // Origin tại chuôi (giữ chuôi ở giữa đáy để quay/đâm đúng tay cầm)
-                setOrigin(width / 2f, 0f)
-                setScale(0.3f)
-            }
-        }
-    }
-
-    // =====================================================
-    // Sword attack (đâm thẳng thay vì vung 90°)
-    // =====================================================
-    fun swordAttack(world: World) {
-        if (specialMode != SpecialMode.SWORD) return
-        if (swordCooldown > 0f || swordThrusting) return
-        ensureSwordSprite()
-        val stats = getGunStats(GunType.Sword)
-        swordFacingAngle = sprite.rotation
-        swordThrustElapsed = 0f
-        swordThrusting = true
-        swordEnemiesHit.clear()
-        swordEnemySnapshot = world.enemies // snapshot để nhất quán trong animation
-        val length = swordSprite?.let { it.height * it.scaleY } ?: stats.bulletRange
-        swordMaxReach = length * swordTravelFactor
-        swordCurrentReach = 0f
-        swordLastDamage = stats.damage
-        swordCooldown = 1f / stats.fireRate
-        val anchor = getSwordAnchor()
-        swordHandleX = anchor.x
-        swordHandleY = anchor.y
-        AudioManager.playSound("sounds/gun-shot-359196.mp3", 0.15f)
-    }
-
-    private fun updateSwordThrust(delta: Float) {
-        if (!swordThrusting) return
-        swordThrustElapsed += delta
-        val progress = (swordThrustElapsed / swordThrustDuration).coerceIn(0f,1f)
-        // Pha đi ra (0 -> 0.5) và thu về (0.5 -> 1)
-        val outwardFactor = if (progress <= 0.5f) (progress / 0.5f) else (1f - (progress - 0.5f) / 0.5f)
-        val currentReach = swordMaxReach * outwardFactor
-        swordCurrentReach = currentReach
-
-        // Cập nhật anchor (nhân vật có thể di chuyển / quay trong lúc animation? Giữ hướng cũ để tạo cảm giác đâm cố định)
-        val anchor = getSwordAnchor()
-        swordHandleX = anchor.x
-        swordHandleY = anchor.y
-
-        val dirRad = swordFacingAngle * MathUtils.degreesToRadians
-        val dirX = MathUtils.cos(dirRad)
-        val dirY = MathUtils.sin(dirRad)
-        val halfWidth = swordDamageWidth * 0.5f
-
-        swordEnemySnapshot.forEach { enemy ->
-            if (enemy.isDead()) return@forEach
-            if (enemy in swordEnemiesHit) return@forEach
-            val ex = enemy.position.x + enemy.sprite.width * 0.5f
-            val ey = enemy.position.y + enemy.sprite.height * 0.5f
-            val dx = ex - swordHandleX
-            val dy = ey - swordHandleY
-            val proj = dx * dirX + dy * dirY
-            if (proj < 0f || proj > currentReach) return@forEach
-            val perp = kotlin.math.abs(dx * (-dirY) + dy * dirX)
-            if (perp <= halfWidth) {
-                enemy.takeDamage(swordLastDamage)
-                swordEnemiesHit.add(enemy)
-            }
-        }
-
-        if (progress >= 1f) {
-            swordThrusting = false
-        }
     }
 
     // =====================================================
@@ -262,7 +161,7 @@ class Player(
         if (!canPlaceTrap()) return
         val cx = position.x + sprite.width/2f
         val cy = position.y + sprite.height/2f
-        world.rootEnemiesAt(Vector2(cx, cy), 140f, 3f)
+        // Đặt bẫy: không áp dụng hiệu ứng ngay lập tức; chỉ khi kẻ địch bước vào mới bị trói
         world.addTrap(Vector2(cx, cy)) // Thêm trap vào World để vẽ hình trap
         trapCooldown = 5f
         AudioManager.playSound("sounds/gun-shot-359196.mp3", 0.2f)
@@ -279,15 +178,19 @@ class Player(
         mapWidth: Float = 800f,
         mapHeight: Float = 600f
     ) {
-        updateCooldowns(delta)
-        if (specialMode == SpecialMode.SWORD) updateSwordThrust(delta)
+        // underscore unused size params to silence warnings
+        @Suppress("UNUSED_PARAMETER") val _mw = mapWidth
+        @Suppress("UNUSED_PARAMETER") val _mh = mapHeight
 
-        if (ammoInMagazine == 0 && !isReloading) manualReload(forceFull = true)
-        if (isReloading) {
-            reloadTimer -= delta
-            if (reloadTimer <= 0f) {
-                ammoInMagazine = reloadTarget
-                isReloading = false
+        updateCooldowns(delta)
+
+        // Reload logic per current weapon
+        if (weapon.ammoInMagazine == 0 && !weapon.isReloading) manualReload(forceFull = true)
+        if (weapon.isReloading) {
+            weapon.reloadTimer -= delta
+            if (weapon.reloadTimer <= 0f) {
+                weapon.ammoInMagazine = weapon.reloadTarget
+                weapon.isReloading = false
             }
         }
         shootCooldown = (shootCooldown - delta).coerceAtLeast(0f)
@@ -300,6 +203,7 @@ class Player(
             bullets = bulletsOnMap
         )
         actionHistory.add(gs to moveAction)
+        if (actionHistory.size > 500) actionHistory.removeFirst()
 
         sprite.setPosition(position.x, position.y)
 
@@ -319,46 +223,20 @@ class Player(
         )
     }
 
-    // Anchor gần thân dành riêng cho kiếm để chuôi sát người
-    private fun getSwordAnchor(): Vector2 {
-        val pivotX = sprite.x + sprite.originX
-        val pivotY = sprite.y + sprite.originY
-        val angleRad = sprite.rotation * MathUtils.degreesToRadians
-        return Vector2(
-            pivotX + MathUtils.cos(angleRad) * swordHoldDistance,
-            pivotY + MathUtils.sin(angleRad) * swordHoldDistance
-        )
-    }
-
     // =====================================================
     // Render
     // =====================================================
     fun render(batch: SpriteBatch) {
         sprite.draw(batch)
+        if (rootTimeLeft > 0f) {
+            RootFontHolder.font.color = Color.RED
+            RootFontHolder.font.data.setScale(1.2f)
+            RootFontHolder.font.draw(batch, "unable to move", sprite.x - 10f, sprite.y + sprite.height + 30f)
+            RootFontHolder.font.data.setScale(1f)
+        }
         when (specialMode) {
             SpecialMode.NONE -> {
                 val anchor = getHandAnchor(); weapon.render(batch, anchor, sprite.rotation)
-            }
-            SpecialMode.SWORD -> {
-                ensureSwordSprite()
-                swordSprite?.let { sw ->
-                    val displayAngle = swordFacingAngle
-                    val dirRad = displayAngle * MathUtils.degreesToRadians
-                    val dirX = MathUtils.cos(dirRad)
-                    val dirY = MathUtils.sin(dirRad)
-                    val baseAnchor = getSwordAnchor()
-                    val handleOffset = 4f
-                    swordHandleX = baseAnchor.x + dirX * handleOffset
-                    swordHandleY = baseAnchor.y + dirY * handleOffset
-                    val reachX = dirX * swordCurrentReach
-                    val reachY = dirY * swordCurrentReach
-                    sw.rotation = displayAngle
-                    sw.setPosition(
-                        swordHandleX + reachX - sw.originX * sw.scaleX,
-                        swordHandleY + reachY - sw.originY * sw.scaleY
-                    )
-                    sw.draw(batch)
-                }
             }
             SpecialMode.BOMB -> {
                 if (bombSprite == null) {
@@ -384,8 +262,10 @@ class Player(
                 batch.draw(shieldTex, drawX, drawY, size/2f, size/2f, size, size,1f,1f,sprite.rotation,0,0,shieldTex.width,shieldTex.height,false,false)
             }
             SpecialMode.TRAP -> {
-                // Hiển thị icon trap trên tay (dùng icon crosshair)
-                val trapTex = runCatching { Texture(GunType.Trap.assetPath) }.getOrNull()
+                // Hiển thị icon trap trên tay (cache texture để tránh tạo lại mỗi frame)
+                if (trapTex == null) {
+                    trapTex = runCatching { Texture(GunType.Trap.assetPath) }.getOrNull()
+                }
                 trapTex?.let { t ->
                     val anchor = getHandAnchor()
                     batch.draw(t, anchor.x - 16f, anchor.y - 16f, 16f,16f,32f,32f,1f,1f,0f,0,0,t.width,t.height,false,false)
@@ -399,7 +279,7 @@ class Player(
         batch: SpriteBatch,
         blankTexture: Texture,
         font: BitmapFont,
-        screenWidth: Float,
+        _screenWidth: Float,
         screenHeight: Float
     ) {
         val marginLeft = 40f
@@ -423,7 +303,7 @@ class Player(
         uiY -= ammoHeight
         font.color = Color.SALMON
         font.data.setScale(2f)
-        val ammoText = if (isReloading) "Reloading..." else "$ammoInMagazine / $maxBullets"
+        val ammoText = if (weapon.isReloading) "Reloading..." else "${weapon.ammoInMagazine} / ${weapon.maxBullets}"
         font.draw(batch, ammoText, marginLeft, uiY + ammoHeight * 0.7f)
         font.data.setScale(1f)
         font.color = Color.WHITE
@@ -466,9 +346,9 @@ class Player(
     // Ranged attack (guns)
     // =====================================================
     fun attack(enemyPosition: Vector2, bulletsOnMap: List<Bullet>) {
-        if (weapon.type == GunType.Sword || weapon.type == GunType.Bomb) return
+        if ( weapon.type == GunType.Bomb) return
         val stats = getGunStats(weapon.type)
-        if (isReloading || ammoInMagazine == 0) return
+        if (weapon.isReloading || weapon.ammoInMagazine == 0) return
         if (shootCooldown > 0f) return
         val angleRad = sprite.rotation * MathUtils.degreesToRadians
         val direction = Vector2(MathUtils.cos(angleRad), MathUtils.sin(angleRad))
@@ -481,17 +361,17 @@ class Player(
                     GunType.Gun -> BulletType.Gun
                     GunType.Machine -> BulletType.Machine
                     GunType.Silencer -> BulletType.Silencer
-                    GunType.Sword, GunType.Bomb, GunType.Shield, GunType.Trap -> BulletType.Gun // không dùng / placeholder
+                    GunType.Bomb, GunType.Shield, GunType.Trap -> BulletType.Gun
                 },
                 position = bulletStart,
                 direction = direction,
-                owner = BulletOwner.PLAYER,
                 maxDistance = stats.bulletRange,
                 size = stats.bulletSize,
                 damage = stats.damage
             )
         )
-        ammoInMagazine--
+        weapon.ammoInMagazine--
+        if (DEBUG_AMMO) debugPrintAllWeaponAmmo("After shot ${weapon.type}")
         shootCooldown = 1f / stats.fireRate
 
         val gs = GameState(
@@ -500,24 +380,31 @@ class Player(
             bullets = bulletsOnMap
         )
         actionHistory.add(gs to PlayerAction.Shoot)
+        if (actionHistory.size > 500) actionHistory.removeFirst()
 
         when (weapon.type) {
             GunType.Gun -> AudioManager.playSound("sounds/submachine-gun-79846.mp3", 0.25f)
             GunType.Machine -> AudioManager.playSound("sounds/machine-gun-129928.mp3", 0.25f)
             GunType.Silencer -> AudioManager.playSound("sounds/gun-shot-359196.mp3", 0.25f)
-            GunType.Sword, GunType.Bomb, GunType.Shield, GunType.Trap -> { /* no sound */ }
+            GunType.Bomb, GunType.Shield, GunType.Trap -> { /* no sound */ }
         }
+    }
+
+    private fun debugPrintAllWeaponAmmo(context: String) {
+        val sb = StringBuilder("[AmmoDebug] $context | ")
+        weapons.forEach { w -> sb.append("${w.type}:${w.ammoInMagazine}/${w.maxBullets} ") }
+        Gdx.app.log("Player", sb.toString())
     }
 
     // =====================================================
     // Reload & damage & dispose
     // =====================================================
     fun manualReload(forceFull: Boolean = false) {
-        if (isReloading) return
-        if (ammoInMagazine == maxBullets) return
-        isReloading = true
-        reloadTarget = maxBullets
-        reloadTimer = if (forceFull) reloadTimeFull else (maxBullets - ammoInMagazine) * reloadTimePerBullet
+        if (weapon.isReloading) return
+        if (weapon.ammoInMagazine == weapon.maxBullets) return
+        weapon.isReloading = true
+        weapon.reloadTarget = weapon.maxBullets
+        weapon.reloadTimer = if (forceFull) reloadTimeFull else (weapon.maxBullets - weapon.ammoInMagazine) * reloadTimePerBullet
     }
 
     fun takeDamage(amount: Int) {
@@ -531,9 +418,12 @@ class Player(
     fun isDead(): Boolean = health <= 0
 
     fun dispose() {
-        texture.disposeSafely()
+        // texture shared via Assets
         weapons.forEach { it.dispose() }
         bullets.forEach { it.dispose() }
-        swordTex?.disposeSafely(); bombTex?.disposeSafely()
+        bombTex?.disposeSafely()
+        trapTex?.disposeSafely()
     }
 }
+
+private object RootFontHolder { val font = BitmapFont() }

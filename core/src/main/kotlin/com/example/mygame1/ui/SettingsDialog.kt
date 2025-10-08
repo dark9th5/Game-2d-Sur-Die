@@ -2,26 +2,27 @@ package com.example.mygame1.ui
 
 import com.badlogic.gdx.scenes.scene2d.Action
 import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.scenes.scene2d.ui.CheckBox
 import com.badlogic.gdx.scenes.scene2d.ui.Dialog
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
-import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.utils.Scaling
 import com.example.mygame1.audio.AudioManager
 import com.example.mygame1.data.SettingsManager
 
 class SettingsDialog(
     skin: Skin,
-    private val onClose: (() -> Unit)? = null
+    private val onClose: (() -> Unit)? = null,
+    private val inGame: Boolean = false,
+    private val onBackHome: (() -> Unit)? = null,
+    private val onMusicToggle: (() -> Unit)? = null
 ) : Dialog("Settings", skin) {
 
-    private val musicCheck = CheckBox(" Music", skin)
-    private val soundCheck = CheckBox(" Sound", skin)
-
-    // Bạn có thể chỉnh nhanh kích thước ô tick tại đây (ví dụ 128f, 160f, 192f ...)
+    private var musicEnabled = SettingsManager.musicEnabled
+    private var soundEnabled = SettingsManager.soundEnabled
+    private val musicButton = TextButton("", skin)
+    private val soundButton = TextButton("", skin)
     private val checkSize = 64f
 
     init {
@@ -47,51 +48,92 @@ class SettingsDialog(
         val content = contentTable
         content.pad(24f)
 
-        // MUSIC
-        musicCheck.isChecked = SettingsManager.musicEnabled
-        musicCheck.label.setFontScale(3f)
-        // Phóng to ô tick + vùng chạm
-        run {
-            val style = musicCheck.style as CheckBox.CheckBoxStyle
-            val d: Drawable? = style.checkboxOn ?: style.checkboxOff
-            // Bắt buộc Image scale theo kích thước cell
-            musicCheck.image.setScaling(Scaling.stretch)
-            // Set kích thước icon lớn
-            musicCheck.imageCell.size(checkSize, checkSize)
-            // Tăng khoảng cách và vùng chạm xung quanh
-            musicCheck.pad(24f)
-        }
-        musicCheck.addListener { _ ->
-            val enabled = musicCheck.isChecked
-            SettingsManager.musicEnabled = enabled
-            if (!enabled) AudioManager.stopMusic()
-            true
-        }
+        // MUSIC BUTTON
+        updateMusicButtonText()
+        musicButton.label.setFontScale(3f)
+        musicButton.addListener(object : ClickListener() {
+            override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
+                musicEnabled = !musicEnabled
+                com.example.mygame1.data.SettingsManager.musicEnabled = musicEnabled
+                updateMusicButtonText()
+                if (!musicEnabled) {
+                    com.example.mygame1.audio.AudioManager.stopMusic()
+                } else {
+                    onMusicToggle?.invoke()
+                }
+            }
+        })
 
-        // SOUND
-        soundCheck.isChecked = SettingsManager.soundEnabled
-        soundCheck.label.setFontScale(3f)
-        run {
-            val style = soundCheck.style as CheckBox.CheckBoxStyle
-            val d: Drawable? = style.checkboxOn ?: style.checkboxOff
-            soundCheck.image.setScaling(Scaling.stretch)
-            soundCheck.imageCell.size(checkSize, checkSize)
-            soundCheck.pad(24f)
-        }
-        soundCheck.addListener { _ ->
-            SettingsManager.soundEnabled = soundCheck.isChecked
-            true
-        }
+        // SOUND BUTTON
+        updateSoundButtonText()
+        soundButton.label.setFontScale(3f)
+        soundButton.addListener(object : ClickListener() {
+            override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
+                soundEnabled = !soundEnabled
+                com.example.mygame1.data.SettingsManager.soundEnabled = soundEnabled
+                updateSoundButtonText()
+            }
+        })
 
         // Layout
         val table = Table()
         table.defaults().pad(24f).left()
-        table.add(musicCheck).left().row()
-        table.add(soundCheck).left().row()
+        table.add(musicButton).width(320f).height(110f).row()
+        table.add(soundButton).width(320f).height(110f).row()
 
-        content.add(table).grow()
+        content.add(table).grow().row()
+
+        // Action button (Back Home or Exit) at bottom
+        val actionButton = TextButton(if (inGame) "Back Home" else "Exit", skin).apply {
+            label.setFontScale(3.2f)
+        }
+        actionButton.addListener(object: ClickListener(){
+            override fun clicked(event: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
+                showConfirm()
+            }
+        })
+        content.add(actionButton).padTop(16f).center()
 
         pack()
+    }
+
+    private fun showConfirm() {
+        val msg = if (inGame) "ARE YOU SURE YOU BACK TO MENU ?" else "ARE YOU SURE YOU WANT TO EXIT GAME ?"
+        val confirm = object: Dialog("Confirm", skin) {}
+        val label = com.badlogic.gdx.scenes.scene2d.ui.Label(msg, skin).apply { setFontScale(2.4f); wrap = true }
+        val yesBtn = TextButton("YES", skin).apply { label.setFontScale(2.8f) }
+        val noBtn = TextButton("NO", skin).apply { label.setFontScale(2.8f) }
+        val inner = Table().apply {
+            pad(40f)
+            add(label).width(800f).padBottom(40f).row()
+            val btnRow = Table()
+            btnRow.add(yesBtn).width(260f).height(120f).padRight(60f)
+            btnRow.add(noBtn).width(260f).height(120f)
+            add(btnRow)
+        }
+        confirm.contentTable.add(inner).grow()
+        yesBtn.addListener(object: ClickListener(){
+            override fun clicked(e: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) {
+                if (inGame) {
+                    // Back to main menu via provided callback
+                    onBackHome?.invoke()
+                } else {
+                    com.badlogic.gdx.Gdx.app.exit()
+                }
+                confirm.hide(); this@SettingsDialog.hide()
+            }
+        })
+        noBtn.addListener(object: ClickListener(){
+            override fun clicked(e: com.badlogic.gdx.scenes.scene2d.InputEvent?, x: Float, y: Float) { confirm.hide() }
+        })
+        confirm.show(stage)
+    }
+
+    private fun updateMusicButtonText() {
+        musicButton.setText("Music: " + if (musicEnabled) "ON" else "OFF")
+    }
+    private fun updateSoundButtonText() {
+        soundButton.setText("Sound: " + if (soundEnabled) "ON" else "OFF")
     }
 
     // Kích thước dialog = 1/4 viewport, căn giữa

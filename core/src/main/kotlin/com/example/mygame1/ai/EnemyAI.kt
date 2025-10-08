@@ -5,6 +5,19 @@ import kotlin.random.Random
 class EnemyAI(
     private val useML: Boolean = true // Có dùng ML không
 ) {
+    // Trạng thái tuần tra giữ lại hướng trong một khoảng thời gian để tránh quay vòng tại chỗ
+    private var patrolDir: Vector2 = Vector2(1f, 0f)
+    private var patrolTimeLeft: Float = 0f
+
+    private fun ensurePatrolDirection() {
+        if (patrolTimeLeft <= 0f) {
+            patrolDir = randomDirection()
+            patrolTimeLeft = 2f + Random.nextFloat() * 2.5f // 2-4.5s
+        }
+    }
+
+    private fun updatePatrol(delta: Float) { patrolTimeLeft -= delta }
+
     // ML module giả lập: Trả về hướng né đạn (vector), có thể thay bằng model thực tế sau
     fun evadeBullets(state: GameState): Vector2? {
         val nearestBullet = state.bullets
@@ -24,22 +37,22 @@ class EnemyAI(
         ).nor()
     }
 
-    // AI cứng: phát hiện, di chuyển, bắn
-    fun decideAction(state: GameState, visionRange: Float): EnemyAction {
+    // AI cứng: phát hiện, di chuyển, bắn (đã thêm delta cho tuần tra mượt)
+    fun decideAction(state: GameState, visionRange: Float, delta: Float): EnemyAction {
+        updatePatrol(delta)
         val distToPlayer = state.enemyPosition.dst(state.playerPosition)
         val vision = visionRange
         val shoot = 200f
 
-        // 1. Phát hiện player
         if (distToPlayer < vision) {
-            // 2. Né đạn bằng ML nếu có dùng ML và có đạn nguy hiểm
+            // Reset bộ đếm tuần tra để khi mất dấu sẽ chọn hướng mới mượt hơn
+            if (patrolTimeLeft < 1f) patrolTimeLeft = 1f
             if (useML) {
                 val evade = evadeBullets(state)
                 if (evade != null) {
                     return EnemyAction.Move(evade)
                 }
             } else {
-                // AI cứng né đạn (đơn giản)
                 val bulletDanger = state.bullets.any { bullet ->
                     bullet.position.dst(state.enemyPosition) < 60f &&
                         bullet.direction.dot(state.enemyPosition.cpy().sub(bullet.position).nor()) > 0.7f
@@ -48,7 +61,6 @@ class EnemyAI(
                     return EnemyAction.Move(Vector2(-1f, 0f))
                 }
             }
-            // 3. Đuổi/bắn
             if (distToPlayer > shoot) {
                 val moveDir = state.playerPosition.cpy().sub(state.enemyPosition).nor()
                 return EnemyAction.Move(moveDir)
@@ -56,9 +68,50 @@ class EnemyAI(
                 return EnemyAction.Shoot(state.playerPosition.cpy().sub(state.enemyPosition).nor())
             }
         }
-        // 4. Tuần tra: DI CHUYỂN NGẪU NHIÊN khi không phát hiện player
-        return EnemyAction.Move(randomDirection())
+        // Ngoài tầm nhìn => tuần tra ổn định
+        ensurePatrolDirection()
+        return EnemyAction.Move(patrolDir.cpy())
     }
+
+    // Phiên bản thích nghi dùng snapshot hành vi người chơi (có delta)
+    fun decideActionAdaptive(state: GameState, baseVision: Float, behavior: PlayerBehaviorSnapshot?, delta: Float): EnemyAction {
+        updatePatrol(delta)
+        behavior ?: return decideAction(state, baseVision, delta)
+        val distToPlayer = state.enemyPosition.dst(state.playerPosition)
+        val vision = baseVision * (1f + behavior.aggression * 0.3f)
+        val shootNear = 160f
+        val shootFar = 260f
+        val shootDist = lerp(shootNear, shootFar, behavior.accuracy)
+
+        if (distToPlayer < vision) {
+            // Khi thấy player tạm hoãn đổi hướng tuần tra, nhưng giữ lại hướng hiện tại để tiếp tục sau
+            if (useML && (behavior.accuracy > 0.5f || behavior.aggression > 0.6f)) {
+                val evade = evadeBullets(state)
+                if (evade != null && Random.nextFloat() < 0.85f) {
+                    return EnemyAction.Move(evade)
+                }
+            }
+            if (distToPlayer > shootDist) {
+                val dirToPlayer = state.playerPosition.cpy().sub(state.enemyPosition).nor()
+                val rushBoost = 1f + behavior.preferredDistance * 0.4f
+                return EnemyAction.Move(dirToPlayer.scl(rushBoost))
+            } else {
+                val baseShootDir = state.playerPosition.cpy().sub(state.enemyPosition).nor()
+                if (behavior.accuracy > 0.5f) {
+                    val perp = Vector2(-baseShootDir.y, baseShootDir.x)
+                    val strafeAmount = (behavior.accuracy - 0.5f) * 0.6f
+                    val mixed = baseShootDir.cpy().add(perp.scl(if (Random.nextBoolean()) strafeAmount else -strafeAmount)).nor()
+                    return EnemyAction.Shoot(mixed)
+                }
+                return EnemyAction.Shoot(baseShootDir)
+            }
+        }
+        // Không thấy player => tuần tra giữ hướng trong 2-4.5s rồi đổi
+        ensurePatrolDirection()
+        return EnemyAction.Move(patrolDir.cpy())
+    }
+
+    private fun lerp(a: Float, b: Float, alpha: Float) = a + (b - a) * alpha
 }
 
 // --- Các kiểu dữ liệu ---

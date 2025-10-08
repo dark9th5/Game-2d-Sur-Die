@@ -5,14 +5,15 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector2
-import ktx.assets.disposeSafely
+import com.example.mygame1.Assets
 
 class StarField(
     private val starCount: Int = 400,
     private val sizeScale: Float = 1f // mặc định không giảm kích thước
 ) {
     val stars = mutableListOf<Star>()
-    val starTexture: Texture
+    // Use shared asset
+    val starTexture: Texture = Assets.texture("snowflake/snowflake.png")
 
     data class Star(
         var position: Vector2,
@@ -22,10 +23,6 @@ class StarField(
         var rotation: Float,
         var rotationSpeed: Float
     )
-
-    init {
-        starTexture = Texture("snowflake/snowflake.png") // File ảnh PNG trong suốt
-    }
 
     fun update(delta: Float, mapWidth: Float, mapHeight: Float) {
         val margin = 300f
@@ -108,7 +105,5 @@ class StarField(
         batch.color = Color.WHITE
     }
 
-    fun dispose() {
-        starTexture.disposeSafely()
-    }
+    fun dispose() { /* shared texture managed by Assets */ }
 }
