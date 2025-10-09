@@ -73,9 +73,10 @@ class Player(
     var visionBuffTime = 0f
     lateinit var iconSpeed: Texture
     lateinit var iconVision: Texture
-    // Armor icon (dùng texture shield)
+    // Armor icon (UI) và Shield weapon icon
     var armorCount: Int = 0
-    val iconArmor: Texture by lazy { Texture("character/Weapons/shield_curved.png") }
+    val iconArmor: Texture by lazy { Texture("items/armor.png") }
+    val iconShield: Texture by lazy { Texture("character/Weapons/shield_curved.png") }
 
     // ---------------- Special Modes ----------------
     enum class SpecialMode { NONE, BOMB, SHIELD, TRAP }
@@ -184,7 +185,7 @@ class Player(
 
         updateCooldowns(delta)
 
-        // Reload logic per current weapon
+        // Buff timers
         if (weapon.ammoInMagazine == 0 && !weapon.isReloading) manualReload(forceFull = true)
         if (weapon.isReloading) {
             weapon.reloadTimer -= delta
@@ -203,7 +204,7 @@ class Player(
             bullets = bulletsOnMap
         )
         actionHistory.add(gs to moveAction)
-        if (actionHistory.size > 500) actionHistory.removeFirst()
+        if (actionHistory.size > 500) actionHistory.removeAt(0)
 
         sprite.setPosition(position.x, position.y)
 
@@ -251,8 +252,8 @@ class Player(
                 }
             }
             SpecialMode.SHIELD -> {
-                // Vẽ khiên phía trước (cùng icon) ở khoảng cách nhỏ
-                val shieldTex = iconArmor
+                // Vẽ khiên phía trước (dùng icon của vũ khí khiên)
+                val shieldTex = iconShield
                 val angleRad = sprite.rotation * MathUtils.degreesToRadians
                 val dirX = MathUtils.cos(angleRad)
                 val dirY = MathUtils.sin(angleRad)
@@ -380,7 +381,7 @@ class Player(
             bullets = bulletsOnMap
         )
         actionHistory.add(gs to PlayerAction.Shoot)
-        if (actionHistory.size > 500) actionHistory.removeFirst()
+        if (actionHistory.size > 500) actionHistory.removeAt(0)
 
         when (weapon.type) {
             GunType.Gun -> AudioManager.playSound("sounds/submachine-gun-79846.mp3", 0.25f)

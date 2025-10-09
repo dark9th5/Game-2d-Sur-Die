@@ -21,6 +21,9 @@ import com.example.mygame1.entities.characterTextures
 import com.example.mygame1.world.StarField
 import ktx.app.KtxScreen
 import com.example.mygame1.data.Difficulty
+import com.example.mygame1.data.SettingsManager
+import com.example.mygame1.ui.ScoreboardDialog
+import com.example.mygame1.ui.SettingsDialog
 
 class MainMenuScreen(private val game: Main) : KtxScreen {
 
@@ -49,6 +52,7 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
 
     private val settingsButtonSize = 128f
 
+    // Tính tỉ lệ giao diện UI dựa trên chiều cao màn hình hiện tại, giúp UI luôn cân đối trên mọi thiết bị
     private fun dynamicScale(): Float {
         val baseH = 1080f
         return (stage.viewport.worldHeight / baseH).coerceIn(0.6f, 1.5f)
@@ -71,8 +75,8 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         }
     }
 
-    private var settingsDialog: com.example.mygame1.ui.SettingsDialog? = null
-    private var scoreboardDialog: com.example.mygame1.ui.ScoreboardDialog? = null
+    private var settingsDialog: SettingsDialog? = null
+    private var scoreboardDialog: ScoreboardDialog? = null
 
     private fun toggleSettingsDialog() {
         val current = settingsDialog
@@ -80,13 +84,13 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             current.hide()
             settingsDialog = null
         } else {
-            val dlg = com.example.mygame1.ui.SettingsDialog(skin,
+            val dlg = SettingsDialog(skin,
                 onClose = null,
                 inGame = false,
                 onBackHome = null,
                 onMusicToggle = {
-                    if (com.example.mygame1.data.SettingsManager.musicEnabled) {
-                        com.example.mygame1.audio.AudioManager.playMusic("sounds/menu_music.mp3")
+                    if (SettingsManager.musicEnabled) {
+                        AudioManager.playMusic("sounds/menu_music.mp3")
                     }
                 }
             )
@@ -100,21 +104,21 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
             current.hide()
             scoreboardDialog = null
         } else {
-            val dlg = com.example.mygame1.ui.ScoreboardDialog(skin, game.selectedDifficulty)
+            val dlg = ScoreboardDialog(skin, game.selectedDifficulty)
             scoreboardDialog = dlg
             dlg.show(stage)
         }
     }
 
-    // Difficulty buttons container & state
+
     private var difficultyTable: Table? = null
     private var playButton: TextButton? = null
     private var playContainer: Table? = null
 
     override fun show() {
-        // Reset state so Play always rebuilds difficulty buttons after returning from other screens
+        // Reset bảng độ khó
         difficultyTable = null
-        // Removed conditional lazy init; skin is always ready
+        // Gán stage làm bộ xử lý đầu vào để nhận sự kiện nút bấm
         Gdx.input.inputProcessor = stage
         AudioManager.playMusic("sounds/menu_music.mp3")
 
@@ -218,7 +222,7 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         playButton?.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 if (difficultyTable == null) {
-                    // Build difficulty buttons using explicit style object to avoid style-name lookup NPE
+                    // Chuyển nút Play thành bảng chọn độ khó
                     val baseStyle = runCatching { skin.get(TextButtonStyle::class.java) }.getOrNull()
                         ?: TextButtonStyle().apply { font = skin.getFont("default"); fontColor = Color.WHITE }
                     fun makeBtn(text: String, diff: Difficulty): TextButton {
@@ -320,6 +324,7 @@ class MainMenuScreen(private val game: Main) : KtxScreen {
         weaponImage?.drawable = TextureRegionDrawable(weaponSprite)
     }
 
+    // Cập nhật kích thước và vị trí các nút icon khi thay đổi kích cỡ
     override fun resize(width: Int, height: Int) {
         viewport.update(width, height, true)
         characterSprite?.texture?.dispose(); characterSprite = null

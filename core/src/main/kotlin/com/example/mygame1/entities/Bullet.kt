@@ -6,7 +6,6 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
 
-// Removed BulletOwner (owner distinction handled by separate lists player.bullets / enemy.bullets)
 sealed class BulletType(val assetPath: String) {
     data object Gun : BulletType("character/Characters/green_hand.png")
     data object Machine : BulletType("character/Characters/red_hand.png")
